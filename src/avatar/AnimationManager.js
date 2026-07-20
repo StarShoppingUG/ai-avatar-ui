@@ -2,8 +2,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { resolveAssetUrl } from '../components/constants.js';
 
-const CLIP_BASE = "/assets/animations/";
+// Resolved against this script's own origin (see resolveAssetUrl in
+// constants.js) rather than a bare root-relative path — otherwise every
+// clip fetch (CLIP_BASE + file) 404s silently whenever this bundle is
+// embedded on a page hosted somewhere other than where these assets
+// actually live, or in dev mode where the module's own path isn't the
+// site root.
+const CLIP_BASE = resolveAssetUrl("/assets/animations/");
 
 const ANIMATION_ALIASES = {
     talking: 'talk',
