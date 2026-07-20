@@ -5,13 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Avatar UI — Web Components</title>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1.5rem; line-height: 1.6; }
+    /* Docs-page chrome only. The avatar UI itself (.app-shell and everything
+       inside it, including the dark gradient background on :root) is styled
+       by index.css — which ships bundled inside ai-avatar-ui.js and is
+       injected automatically the moment the script runs (see main.js's
+       injectStyles()). Nothing here overrides that; this just makes the
+       surrounding docs text readable against the same dark theme. */
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+      color: #f5f7fb;
+      line-height: 1.6;
+    }
     h1 { margin-bottom: 0.25rem; }
-    .subtitle { color: #666; margin-top: 0; }
-    pre { background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.9rem; }
+    .subtitle { color: rgba(245, 247, 251, 0.64); margin-top: 0; }
+    pre {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 1rem;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+    }
     code { font-family: 'SF Mono', Consolas, monospace; }
-    .avatar-shell { width: 480px; height: 640px; margin: 1.5rem 0; border: 1px solid #ddd; border-radius: 12px; overflow: hidden; }
-    .note { background: #fff8e1; border-left: 4px solid #f0c33c; padding: 0.75rem 1rem; border-radius: 4px; }
+    .note {
+      background: rgba(249, 200, 70, 0.1);
+      border-left: 4px solid #f9c846;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+    }
+    a { color: #5cc4ff; }
   </style>
 </head>
 <body>
@@ -19,33 +44,35 @@
   <p class="subtitle">Drop-in web components for an interactive 3D avatar chat experience.</p>
 
   <h2>Usage</h2>
-  <p>Load the bundle, then place a <code>.avatar-shell</code> container anywhere on your page:</p>
-  <pre><code>&lt;script type="module" src="https://YOUR-DEPLOYMENT-URL/ai-avatar-ui.js"&gt;&lt;/script&gt;
+  <p>
+    Load the bundle, then include the components inside an
+    <code>.app-shell</code> container — layout and theming are applied
+    automatically once the script runs:
+  </p>
+  <pre><code>&lt;script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"&gt;&lt;/script&gt;
 
-&lt;div class="avatar-shell" style="width: 480px; height: 640px;"&gt;
+&lt;div class="app-shell"&gt;
   &lt;avatar-model backend="https://your-backend.example.com"&gt;&lt;/avatar-model&gt;
   &lt;avatar-status&gt;&lt;/avatar-status&gt;
   &lt;avatar-captions&gt;&lt;/avatar-captions&gt;
-  &lt;avatar-inputs&gt;&lt;/avatar-inputs&gt;
   &lt;avatar-settings&gt;&lt;/avatar-settings&gt;
+  &lt;avatar-inputs&gt;&lt;/avatar-inputs&gt;
 &lt;/div&gt;</code></pre>
 
   <p class="note">
-    <strong>Backend URL:</strong> pass your own backend's URL via the <code>backend</code>
-    attribute on <code>&lt;avatar-model&gt;</code>. If you omit <code>&lt;avatar-model&gt;</code>
-    entirely, this bundle auto-creates one for you inside <code>.avatar-shell</code> — but it'll
-    default to calling same-origin (<code>/ask</code>, <code>/settings</code>, etc. on whatever
-    domain the embedding page is served from), which only works if your backend shares that
-    origin. Most integrators will want to include <code>&lt;avatar-model backend="..."&gt;</code>
-    explicitly, as shown above.
+    <strong>Backend URL:</strong> set the <code>backend</code> attribute on
+    <code>&lt;avatar-model&gt;</code> to your own backend's URL. See the
+    project README's API Contract section for the routes it needs to
+    implement.
   </p>
 
   <h2>Live demo</h2>
-  <div class="avatar-shell">
+  <div class="app-shell">
+    <avatar-model></avatar-model>
     <avatar-status></avatar-status>
     <avatar-captions></avatar-captions>
-    <avatar-inputs></avatar-inputs>
     <avatar-settings></avatar-settings>
+    <avatar-inputs></avatar-inputs>
   </div>
 
   <script type="module" src="/ai-avatar-ui.js"></script>
