@@ -98,8 +98,6 @@ avatar-model {
   aspect-ratio: 1 / 1;       
   position: relative;
   border-radius: 30px;
-  border: 1px solid var(--surface-border);
-  box-shadow: 0 28px 68px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   margin: auto;
 }
