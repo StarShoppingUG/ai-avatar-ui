@@ -473,11 +473,17 @@ class AvatarController {
 
     const captionDuration = nextData.primary === 'ja' ? 3200 : 0;
     const captionId = this.emitCaption(captionText, captionDuration);
-    this.lastAudio = this.model.emotionSystem?.apply(nextData, BACKEND, () => this.hideCaption(captionId)) || null;
+    // Use the actually-resolved backend (attribute override, or BACKEND
+    // fallback) — not the bare BACKEND constant, which is '' whenever a
+    // `backend` attribute is set and would make these paths resolve against
+    // whatever origin the page itself is served from instead of the API.
+    const backendOrigin = this.model.backend || BACKEND;
+    this.lastAudio = this.model.emotionSystem?.apply(nextData, backendOrigin, () => this.hideCaption(captionId)) || null;
 
-    const audioUrl = nextData.primary === 'ja'
+    const relativeAudioUrl = nextData.primary === 'ja'
       ? (nextData.audio_url_ja || nextData.audio_url || nextData.audio_url_en)
       : (nextData.audio_url_en || nextData.audio_url || nextData.audio_url_ja);
+    const audioUrl = relativeAudioUrl ? `${backendOrigin}${relativeAudioUrl}` : relativeAudioUrl;
     let duration = AUDIO_FALLBACK_DURATION;
 
     if (audioUrl) {
