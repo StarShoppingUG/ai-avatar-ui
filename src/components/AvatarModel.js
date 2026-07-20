@@ -10,7 +10,7 @@ import { CharacterBrain } from '../avatar/CharacterBrain.js';
 import { EmotionSystem } from '../avatar/EmotionSystem.js';
 import { CameraFraming } from '../avatar/CameraFraming.js';
 import { DEFAULT_AVATAR_NAME, getAvatar as lookupAvatar } from '../avatar/AvatarSources.js';
-import { BACKEND } from './constants.js';
+import { BACKEND, resolveAssetUrl } from './constants.js';
 import { AvatarController } from './AvatarController.js';
 
 class AvatarModel extends HTMLElement {
@@ -99,7 +99,11 @@ class AvatarModel extends HTMLElement {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
 
-    new RGBELoader().load('/assets/textures/sunset.hdr', (texture) => {
+    // Resolved against this script's own origin (see resolveAssetUrl in
+    // constants.js) rather than a bare root-relative path — otherwise this
+    // 404s silently whenever the bundle is embedded on a page hosted
+    // somewhere other than where these assets actually live.
+    new RGBELoader().load(resolveAssetUrl('/assets/textures/sunset.hdr'), (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       this.scene.environment = texture;
     });
