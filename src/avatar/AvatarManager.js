@@ -33,6 +33,19 @@ export class AvatarManager {
         return this.currentAvatar;
     }
 
+    /**
+     * Update scale and/or vertical position for the currently loaded avatar,
+     * live — no reload needed. Either field is optional; omit one to leave
+     * it as-is. verticalOffset is stored back onto the avatar's own scale
+     * metadata so it survives a later scale-only call.
+     */
+    setTransform({ scale, verticalOffset } = {}) {
+        if (!this.currentAvatar) return;
+        const meta = this.currentAvatar.userData?.avatarScale;
+        if (meta && verticalOffset !== undefined) meta.verticalOffset = verticalOffset;
+        AvatarScale.applyProportions(this.currentAvatar, scale ?? meta?.scale ?? 1);
+    }
+
     _removeCurrent() {
         if (!this.currentAvatar) return;
         if (this.currentAvatar.scene) this.scene.remove(this.currentAvatar.scene);
@@ -61,8 +74,12 @@ export class AvatarManager {
                         dispose: () => disposeObject3D(gltf.scene),
                     };
 
-                    // Normalize size + ground feet at y=0
-                    AvatarScale.apply(wrapper);
+                    // Normalize size + ground feet at y=0. `customization` lets
+                    // callers (AvatarModel → AvatarController) set an overall
+                    // scale and vertical position per-avatar; AvatarScale.apply()
+                    // falls back to its own defaults for anything left unset here.
+                    const { scale, verticalOffset } = customization;
+                    AvatarScale.apply(wrapper, { scale, verticalOffset });
 
                     this.scene.add(gltf.scene);
                     this.currentAvatar = wrapper;

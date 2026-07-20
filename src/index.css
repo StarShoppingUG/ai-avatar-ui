@@ -4,7 +4,7 @@
   padding: 0;
   border-radius: 14px;
   font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  font-size: clamp(12px, 1vw + 8px, 15px);
+  font-size: clamp(11px, 1vw + 8px, 16px);
 }
 :root {
   color-scheme: dark;
@@ -25,11 +25,12 @@
 .app-shell {
   display: grid;
   gap:10px;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto 1fr auto;
   max-width: 900px;
   margin: auto;
   padding: 0 10px;
   height: 96vh;
+  position: relative; /* containing block for the absolutely-positioned captions overlay */
 }
 /* 1. Top Left Settings */
 avatar-status {
@@ -49,23 +50,37 @@ avatar-settings {
   justify-self: end; /* Standard top-right positioning */
 }
 
-/* 4. Captions Immediately Below Avatar */
+/* 4. Captions Overlaid On The Avatar */
+/* .avatar-stage wraps avatar-model + avatar-captions and owns the grid slot
+   they used to share indirectly. It's a plain positioned box, so captions
+   anchor to ITS bottom edge directly — no dependency on how a given browser
+   resolves the containing block for an absolutely-positioned grid item. */
+.avatar-stage {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  position: relative;
+  min-height: 0; /* let the 1fr row actually shrink/grow this */
+  width: 100%;
+  height: 100%;
+}
+
 avatar-captions {
-  margin: auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px; /* distance from the bottom of the avatar stage — safe to tune */
+  margin: 0 auto;
   width: fit-content;
+  max-width: 90%;
   display: grid;
   place-items: center start;
-  grid-column: 1 / span 2; /* Keeps consistent full width layout */
-  grid-row: 3;
-    position: relative;
-  z-index: 10;
-
+  z-index: 30;
 }
 
 /* 5. Inputs Below Captions */
 avatar-inputs {
   grid-column: 1 / span 2; /* Keeps consistent full width layout */
-  grid-row: 4;
+  grid-row: 3;
   /* Position unchanged from original layout — this only guarantees that IF
      the textarea grows tall enough to visually reach into the avatar's
      space (long multi-line messages), it paints above the 3D model instead
@@ -75,31 +90,25 @@ avatar-inputs {
 }
 
 avatar-model {
-  display: inline-block;
-  width: fit-content;
-  height: fit-content;
-  max-width: 100%;
-  align-items: center;
-  grid-column: 1 / span 2;
-  grid-row: 2;
-  width: fit-content;
-  max-width: 100%;
   display: inline-flex;
-  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0; /* allow the wrapper to actually shrink/grow this, not just grow */
   align-items: center;
+  justify-content: center;
   overflow: hidden;
   margin: 0 auto;
   position: relative;
   z-index: 1;
 }
 .avatar-frame {
-  width: min(100%, 420px); 
-  height: min(100%, 420px);  
-  aspect-ratio: 1 / 1;       
+  width: 100%;
+  height: 100%;
   position: relative;
   border-radius: 30px;
   overflow: hidden;
   margin: auto;
+  
 }
 
 
@@ -172,6 +181,7 @@ avatar-model {
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.24s ease, transform 0.24s ease;
+  font-size: 1.1rem;
 }
 .avatar-caption.visible {
   opacity: 1;

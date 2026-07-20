@@ -132,6 +132,24 @@ class AvatarController {
       this.emitStatus('Voice updated.', 'green');
     });
 
+    // Lets any panel/dev-tool adjust the loaded avatar's scale and/or
+    // vertical position live — e.g. { scale: 1.1 }, { verticalOffset: -0.8 },
+    // or both together. Persists only for this session/avatar-switch
+    // (avatarScaleConfig lives on the model instance, same lifetime as the
+    // avatar-scale/avatar-vertical-offset attributes) — there's no backend
+    // settings field for it yet, unlike response/UI language, so this
+    // doesn't call brain.saveSettings().
+    window.addEventListener('avatar:set-scale', (event) => {
+      const { scale, verticalOffset } = event.detail || {};
+      if (scale === undefined && verticalOffset === undefined) return;
+
+      if (scale !== undefined) this.model.avatarScaleConfig.scale = scale;
+      if (verticalOffset !== undefined) this.model.avatarScaleConfig.verticalOffset = verticalOffset;
+
+      this.model.avatarManager?.setTransform(this.model.avatarScaleConfig);
+      this.emitStatus('Scale updated.', 'green');
+    });
+
     window.addEventListener('avatar:reset', () => this.resetConversation());
   }
 

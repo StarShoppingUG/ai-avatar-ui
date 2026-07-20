@@ -19,6 +19,17 @@ class AvatarModel extends HTMLElement {
     this._connected = false;
     this.backend = this.getAttribute('backend') || BACKEND;
     this.currentAvatarId = this.getAttribute('avatar-id') || DEFAULT_AVATAR_NAME;
+
+    // The only avatar-sizing knobs exposed to consumers: an overall scale
+    // multiplier and a vertical position offset. Undefined (unset attribute)
+    // is intentional — it lets AvatarScale.apply() fall back to its own
+    // tuned defaults rather than us re-declaring them here. Width/height are
+    // handled separately below (avatar-width/avatar-height attributes,
+    // container-fill by default) — they're layout, not model scale.
+    this.avatarScaleConfig = {
+      scale: this._floatAttr('avatar-scale'),
+      verticalOffset: this._floatAttr('avatar-vertical-offset'),
+    };
     this.scene = new THREE.Scene();
     this.renderer = null;
     this.camera = null;
@@ -38,14 +49,28 @@ class AvatarModel extends HTMLElement {
     this.modelClock = null;
   }
 
+  /** Reads an attribute as a float, returning undefined (not NaN) when unset/invalid. */
+  _floatAttr(name) {
+    const raw = this.getAttribute(name);
+    if (raw === null || raw === '') return undefined;
+    const value = parseFloat(raw);
+    return Number.isNaN(value) ? undefined : value;
+  }
+
   static get observedAttributes() {
     // avatar-width / avatar-height are OPTIONAL. By default the element
-    // fills its container (see the injected CSS above). Only set these
-    // attributes if you specifically want an inline-style override that
-    // beats your stylesheet (inline style has higher specificity than
-    // any CSS selector). Otherwise just size the container, or target
+    // fills its container (see the injected CSS above) — that's the
+    // recommended way to size it. Only set these attributes if you
+    // specifically want an inline-style override that beats your
+    // stylesheet (inline style has higher specificity than any CSS
+    // selector). Otherwise just size the container, or target
     // `avatar-model` directly in your own CSS.
-    return ['avatar-width', 'avatar-height', 'backend'];
+    //
+    // avatar-scale is a uniform multiplier on the model's normalized size
+    // (1 = default size). avatar-vertical-offset shifts the model up/down
+    // in the scene (more negative = lower). Both are optional and take
+    // effect immediately on the currently loaded avatar.
+    return ['avatar-width', 'avatar-height', 'backend', 'avatar-scale', 'avatar-vertical-offset'];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -62,6 +87,12 @@ class AvatarModel extends HTMLElement {
       if (this.controller) {
         this.controller.brain = new CharacterBrain(this.backend);
       }
+    }
+    if (name === 'avatar-scale' || name === 'avatar-vertical-offset') {
+      this.avatarScaleConfig.scale = this._floatAttr('avatar-scale');
+      this.avatarScaleConfig.verticalOffset = this._floatAttr('avatar-vertical-offset');
+      // Re-applies to the currently loaded avatar immediately — no reload needed.
+      this.avatarManager?.setTransform(this.avatarScaleConfig);
     }
   }
 
@@ -178,7 +209,11 @@ class AvatarModel extends HTMLElement {
 
 
     try {
-      this.currentAvatarModel = await this.avatarManager.loadAvatar(avatar.file, avatar.name);
+      this.currentAvatarModel = await this.avatarManager.loadAvatar(
+        avatar.file,
+        avatar.name,
+        this.avatarScaleConfig
+      );
 
 
       await this.attachEngines(this.currentAvatarModel, avatar.name);

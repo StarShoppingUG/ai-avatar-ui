@@ -52,9 +52,11 @@
   <pre><code>&lt;script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"&gt;&lt;/script&gt;
 
 &lt;div class="app-shell"&gt;
-  &lt;avatar-model backend="https://your-backend.example.com"&gt;&lt;/avatar-model&gt;
+  &lt;div class="avatar-stage"&gt;
+    &lt;avatar-model backend="https://your-backend.example.com" avatar-scale="1" avatar-vertical-offset="-1.25"&gt;&lt;/avatar-model&gt;
+    &lt;avatar-captions&gt;&lt;/avatar-captions&gt;
+  &lt;/div&gt;
   &lt;avatar-status&gt;&lt;/avatar-status&gt;
-  &lt;avatar-captions&gt;&lt;/avatar-captions&gt;
   &lt;avatar-settings&gt;&lt;/avatar-settings&gt;
   &lt;avatar-inputs&gt;&lt;/avatar-inputs&gt;
 &lt;/div&gt;</code></pre>
@@ -68,13 +70,15 @@
 
   <h2>Live demo</h2>
   <div class="app-shell">
-    <avatar-model></avatar-model>
+    <div class="avatar-stage">
+      <avatar-model avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
+      <avatar-captions></avatar-captions>
+    </div>
     <avatar-status></avatar-status>
-    <avatar-captions></avatar-captions>
     <avatar-settings></avatar-settings>
     <avatar-inputs></avatar-inputs>
   </div>
-
+  
   <script type="module" src="/ai-avatar-ui.js"></script>
 </body>
 </html>

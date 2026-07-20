@@ -127,10 +127,10 @@ const COMBINED_EXPRESSIONS = {
         // We drop eyeSquint significantly to stop the lower lid from pinching upward.
         // Instead, we use eyeBlink at a safe threshold (0.28) to gently droop 
         // the upper eyelid downward for a natural, peaceful resting gaze.
-        eyeSquintLeft: 0.4,        // Kept very low to preserve natural eye shape
-        eyeSquintRight: 0.4,       
-        eyeBlinkLeft: 0.4,         // Soft upper-eyelid droop (perfect for a relaxed look)
-        eyeBlinkRight: 0.4,        
+        eyeSquintLeft: 0.2,        // Kept very low to preserve natural eye shape
+        eyeSquintRight: 0.2,       
+        eyeBlinkLeft: 0.2,         // Soft upper-eyelid droop (perfect for a relaxed look)
+        eyeBlinkRight: 0.2,        
         eyeLookDownLeft: 0.3,      // Gentle downward gaze to remove the rigid lens stare
         eyeLookDownRight: 0.3,
 
@@ -141,15 +141,15 @@ const COMBINED_EXPRESSIONS = {
         browInnerUp: 0.3,          // Very slight lift to keep the expression warm
 
         // --- 3. SUBTLE SKINNED CHEEK CUSHION ---
-        cheekSquintLeft: 0.2,      // Minimal pressure under the eye socket
-        cheekSquintRight: 0.2,
+        cheekSquintLeft: 0.3,      // Minimal pressure under the eye socket
+        cheekSquintRight: 0.3,
 
         // --- 4. THE LOOSE PARTED SILHOUETTE MOUTH ---
         // Maintained the highly visible parted lip structure from before, 
         // as this breaks the neutral posture instantly without altering the eyes.
         jawOpen: 0.5,              // Visible, clean gap between the lips
         mouthPressLeft: 0.3,       
-        mouthPressRight: 0.8,
+        mouthPressRight: 0.4,
         mouthFrownLeft: 0.3,       // Soft organic slack on the left corner
         mouthFrownRight: 0.1,
         mouthStretchLeft: 0.3,     
