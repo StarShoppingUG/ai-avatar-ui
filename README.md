@@ -13,8 +13,6 @@ no npm install or build step needed. Drop this into any page:
 
 Example
 ```html
-<script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
-
   <div class="app-shell">
     <div class="avatar-stage">
       <avatar-model avatar-scale="1" avatar-vertical-offset="-1.25" backend="your-backend-url"></avatar-model>
@@ -24,6 +22,8 @@ Example
     <avatar-settings></avatar-settings>
     <avatar-inputs></avatar-inputs>
   </div>
+  <script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
+
 ```
 
 Set `backend` to wherever your own backend (implementing the
