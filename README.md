@@ -5,6 +5,30 @@ Components (built with Vite) that render a talking 3D avatar, handle chat
 input and voice, and stay in sync with a backend for AI replies,
 text-to-speech, and persisted chat history.
 
+## Load It From Vercel
+
+The latest build is hosted at
+[`ai-avatar-ui-ghost.vercel.app`](https://ai-avatar-ui-ghost.vercel.app/) —
+no npm install or build step needed. Drop this into any page:
+
+```html
+<script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
+
+<div class="avatar-shell" style="width: 480px; height: 640px;">
+  <avatar-model backend="https://your-backend.example.com"></avatar-model>
+  <avatar-status></avatar-status>
+  <avatar-captions></avatar-captions>
+  <avatar-inputs></avatar-inputs>
+  <avatar-settings></avatar-settings>
+</div>
+```
+
+Set `backend` to wherever your own backend (implementing the
+[API Contract](#api-contract) below) is running — see
+[Persistence & Identity](#persistence--identity) and the
+[Backend](#backend) section for details. Visit the URL directly in a
+browser for a live demo and usage notes.
+
 ## Screenshots
 
 <p align="center">
