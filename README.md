@@ -11,19 +11,16 @@ The latest build is hosted at
 [`ai-avatar-ui-ghost.vercel.app`](https://ai-avatar-ui-ghost.vercel.app/) —
 no npm install or build step needed. Drop this into any page:
 
-Example
 ```html
-  <div class="app-shell">
-    <div class="avatar-stage">
-      <avatar-model avatar-scale="1" avatar-vertical-offset="-1.25" backend="your-backend-url"></avatar-model>
-      <avatar-captions></avatar-captions>
-    </div>
-    <avatar-status></avatar-status>
-    <avatar-settings></avatar-settings>
-    <avatar-inputs></avatar-inputs>
-  </div>
-  <script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
+<script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
 
+<div class="avatar-shell" style="width: 480px; height: 640px;">
+  <avatar-model backend="https://your-backend.example.com"></avatar-model>
+  <avatar-status></avatar-status>
+  <avatar-captions></avatar-captions>
+  <avatar-inputs></avatar-inputs>
+  <avatar-settings></avatar-settings>
+</div>
 ```
 
 Set `backend` to wherever your own backend (implementing the
@@ -174,15 +171,16 @@ for what that's for.
 
 | Endpoint | Method | Request | Response |
 |---|---|---|---|
-| `/ask` | POST | `{ text, persona, avatar_persona, character_name, voice_en, voice_ja, speak_language, timezone }` | `{ reply, translated_reply, expression, animation, primary, audio_url_en, audio_url_ja, visemes_en, visemes_ja }` |
-| `/translate` | POST | `{ text, target }` | translated text (JSON) |
+| `/ask` | POST | `{ text, avatar_persona, character_name, voice_en, voice_ja, speak_language, timezone }` | `{ reply, translated_reply, romanization, expression, animation, primary, audio_url, audio_url_en, audio_url_ja, visemes, visemes_en, visemes_ja, voice, mode }` |
+| `/translate` | POST | form-encoded (`Form`, not JSON): `text`, `target` | `{ text, romanization }` |
 | `/voices` | GET | — | `{ catalog: { en: [...], ja: [...] }, default_en, default_ja }` |
-| `/history` | GET | query: `character_name` (optional) | `{ history: [{ role, text/content, text_en?, text_ja?, time, character_name? }, ...] }` |
+| `/history` | GET | query: `character_name` (optional) | `{ history: [{ role, content, text, text_en?, text_ja?, character_name?, time }, ...] }` |
 | `/settings` | GET | — | `{ ui_language, response_language, last_avatar }` |
 | `/settings` | POST | partial patch of the same shape | full saved settings row |
-| `/reset` | POST | query: `character_name` (optional) | — (response is ignored) |
-| `/voice` | POST | `{ text, voice, culture }` | TTS payload (used by a separate live-interpreter flow) |
+| `/reset` | POST | query: `character_name` (optional) | `{ status, mode }` |
+| `/voice` | POST | `{ text, voice, culture }` | `{ audio_url, visemes, voice }` — used by a separate live-interpreter flow, not the main `/ask` chat |
 | `/stt` | POST | `multipart/form-data`: `audio` (blob), `language` | `{ text }` |
+| `/health` | GET | — | `{ status, ai_enabled, provider, model, memory_mode }` |
 
 Notes for implementers:
 - `/ask`'s response shape is the one field set the frontend actually reads
@@ -197,6 +195,19 @@ Notes for implementers:
 - `X-User-Id` is the only identity signal sent — no auth token, no session.
   Use it as a plain key for chat history and settings in whatever
   datastore you choose.
+- `avatar_persona` is the only persona field the backend actually reads —
+  it becomes the avatar's identity in the system prompt. `CharacterBrain.ask()`
+  also accepts a `persona` argument, but it's never included in the request
+  body, so it's currently a dead parameter — don't rely on it existing on
+  the backend.
+- `culture` (`en`/`ja`) is only read by `POST /voice`, to pick a default
+  voice when no explicit `voice` is passed. It has no effect on `/ask`.
+- `POST /translate` is a `Form`-encoded endpoint (`text`/`target` as form
+  fields), not JSON — sending it as `application/json` (as
+  `CharacterBrain.translate()` currently does) will fail against this
+  reference backend. Either send it as `FormData`/URL-encoded on the
+  frontend, or switch the backend to accept a JSON body — but the two
+  need to agree.
 
 ## Persistence & Identity
 
