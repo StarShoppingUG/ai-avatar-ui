@@ -12,15 +12,17 @@ The latest build is hosted at
 no npm install or build step needed. Drop this into any page:
 
 ```html
-<script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
+ <div class="app-shell">
+    <div class="avatar-stage">
+      <avatar-model avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
+      <avatar-captions></avatar-captions>
+    </div>
+    <avatar-status></avatar-status>
+    <avatar-settings></avatar-settings>
+    <avatar-inputs></avatar-inputs>
+  </div>
 
-<div class="avatar-shell" style="width: 480px; height: 640px;">
-  <avatar-model backend="https://your-backend.example.com"></avatar-model>
-  <avatar-status></avatar-status>
-  <avatar-captions></avatar-captions>
-  <avatar-inputs></avatar-inputs>
-  <avatar-settings></avatar-settings>
-</div>
+  <script type="module" src="/src/main.js"></script>
 ```
 
 Set `backend` to wherever your own backend (implementing the
