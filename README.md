@@ -14,7 +14,7 @@ no npm install or build step needed. Drop this into any page:
 ```html
  <div class="app-shell">
     <div class="avatar-stage">
-      <avatar-model avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
+      <avatar-model backend= "backend-url" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
       <avatar-captions></avatar-captions>
     </div>
     <avatar-status></avatar-status>
@@ -23,6 +23,42 @@ no npm install or build step needed. Drop this into any page:
   </div>
 
   <script type="module" src="/src/main.js"></script>
+```
+
+```react
+import { useEffect } from 'react';
+
+export default function AppShell() {
+  useEffect(() => {
+    // Dynamically load the Web Component script when the component mounts
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      // Clean up the script when the component unmounts
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  return (
+    <div className="app-shell">
+      <div className="avatar-stage">
+        <avatar-model 
+          backend="backend-url" 
+          avatar-scale="1" 
+          avatar-vertical-offset="-1.25"
+        />
+        <avatar-captions />
+      </div>
+      <avatar-status />
+      <avatar-settings />
+      <avatar-inputs />
+    </div>
+  );
+}
 ```
 
 Set `backend` to wherever your own backend (implementing the
