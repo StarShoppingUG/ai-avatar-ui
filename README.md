@@ -25,10 +25,10 @@ Html
     <avatar-inputs></avatar-inputs>
   </div>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
 ```
 React
-```html
+```jsx
 import { useEffect } from 'react';
 
 export default function AppShell() {
@@ -63,6 +63,7 @@ export default function AppShell() {
   );
 }
 ```
+
 
 Set `backend` to wherever your own backend (implementing the
 [API Contract](#api-contract) below) is running — see
