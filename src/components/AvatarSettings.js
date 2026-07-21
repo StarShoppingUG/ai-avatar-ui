@@ -189,7 +189,13 @@ class AvatarSettings extends HTMLElement {
       .join('');
     const selectedValue = RESPONSE_LANGUAGES.includes(requested) ? requested : DEFAULT_RESPONSE_LANGUAGE;
     this.responseLanguageSelect.value = selectedValue;
-    emitAvatarEvent('set-response-language', { language: selectedValue });
+    // Note: intentionally no emitAvatarEvent here. This method only syncs the
+    // <select>'s displayed value (on initial connect and when the backend
+    // settings arrive). Emitting 'set-response-language' from here caused it
+    // to be treated as a real user change and re-saved on every page load,
+    // clobbering the actual persisted setting. The event is now emitted only
+    // from the dropdown's own 'change' listener in bindEvents(), where a
+    // user-initiated selection actually happened.
   }
 
   populateUiLanguages() {
