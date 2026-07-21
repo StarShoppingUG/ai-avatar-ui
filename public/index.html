@@ -5,12 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Avatar UI — Web Components</title>
   <style>
+    html, body {
+      margin: 0;
+    }
+
     body {
       max-width: 800px;
       margin: 0 auto;
-      padding: 0.5rem;
+      padding: 0.5rem 0.5rem;
       color: #f5f7fb;
       box-sizing: border-box;
+    }
+
+    .page-header {
+      flex: 0 0 auto;
     }
 
     .page-header h1 {
@@ -27,9 +35,21 @@
     .subtitle { color: rgba(245, 247, 251, 0.64); margin-top: 0; }
     a { color: #5cc4ff; }
 
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+    }
+
     .avatar-stage {
       height: 60vh;
       min-height: 300px;
+      flex: 0 0 auto;
+    }
+
+    avatar-status,
+    avatar-settings,
+    avatar-inputs {
+      flex: 0 0 auto;
     }
 
     @media (max-width: 480px) {
@@ -43,17 +63,22 @@
 <body>
   <div class="page-header">
     <h1>AI Avatar UI</h1>
+
+    <!-- Updated GitHub link section -->
     <h1>Github: <a href="https://github.com/StarShoppingUG/ai-avatar-ui" target="_blank" rel="noopener noreferrer">StarShoppingUG/ai-avatar-ui</a></h1>
+
     <h2>Live demo</h2>
   </div>
 
-  <div class="avatar-stage">
-    <avatar-model backend="https://ai-avatar-backend-xqzl.onrender.com" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
-    <avatar-captions></avatar-captions>
+  <div class="app-shell">
+    <div class="avatar-stage">
+      <avatar-model backend="https://ai-avatar-backend-xqzl.onrender.com" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
+      <avatar-captions></avatar-captions>
+    </div>
+    <avatar-status></avatar-status>
+    <avatar-settings></avatar-settings>
+    <avatar-inputs></avatar-inputs>
   </div>
-  <avatar-status></avatar-status>
-  <avatar-settings></avatar-settings>
-  <avatar-inputs></avatar-inputs>
 
   <script type="module" src="/ai-avatar-ui.js"></script>
 </body>
