@@ -151,11 +151,19 @@ class AvatarInputs extends HTMLElement {
   // /stt request is in flight, so the user can't submit before the
   // transcript has actually landed in the input. Also drives the
   // "listening" avatar pose for the same window (recording → transcribing).
-  setTranscribing(active) {
-    this.isTranscribing = active;
-    emitAvatarEvent('listening', { active });
-    this.refreshInputAvailability();
+setTranscribing(active) {
+  this.isTranscribing = active;
+  emitAvatarEvent('listening', { active });
+  if (this.input) {
+    if (active) {
+      this._prevPlaceholder = this.input.placeholder;
+      this.input.placeholder = 'Transcribing…';
+    } else if (this._prevPlaceholder !== undefined) {
+      this.input.placeholder = this._prevPlaceholder;
+    }
   }
+  this.refreshInputAvailability();
+}
 
   // Disables text entry, the mic button, and send while the character is
   // talking (speaking), thinking (waiting on the backend), or loading a
@@ -163,21 +171,23 @@ class AvatarInputs extends HTMLElement {
   // be queued up yet. Voice recording (isTranscribing) already locked the
   // send button on its own; it's folded into the same check here.
   refreshInputAvailability() {
-    const busy = this.isSpeaking || this.isThinking || this.isLoadingAvatar;
-    if (this.input) {
-      this.input.disabled = busy;
-      this.input.classList.toggle('is-disabled', busy);
-    }
-    if (this.micBtn) {
-      this.micBtn.disabled = busy;
-      this.micBtn.classList.toggle('is-disabled', busy);
-    }
-    if (this.sendBtn) {
-      const sendDisabled = busy || this.isTranscribing;
-      this.sendBtn.disabled = sendDisabled;
-      this.sendBtn.classList.toggle('is-disabled', sendDisabled);
-    }
+  const busy = this.isSpeaking || this.isThinking || this.isLoadingAvatar;
+  const inputBusy = busy || this.isTranscribing;
+
+  if (this.input) {
+    this.input.disabled = inputBusy;
+    this.input.classList.toggle('is-disabled', inputBusy);
   }
+  if (this.micBtn) {
+    this.micBtn.disabled = busy;
+    this.micBtn.classList.toggle('is-disabled', busy);
+  }
+  if (this.sendBtn) {
+    const sendDisabled = busy || this.isTranscribing;
+    this.sendBtn.disabled = sendDisabled;
+    this.sendBtn.classList.toggle('is-disabled', sendDisabled);
+  }
+}
 
   initRecognizer() {
     const Engine = window.SpeechRecognition || window.webkitSpeechRecognition;

@@ -662,25 +662,19 @@ class AvatarController {
    * empty list rather than falling back to any locally-remembered state,
    * so the chat history panel simply stays unpopulated in that case.
    */
-  async refreshHistory() {
-    try {
-      const data = await this.brain.history(this.currentAvatarId);
-      const history = Array.isArray(data?.history) ? data.history : [];
-      this._lastKnownHistory = history;
-      emitAvatarEvent("chat-history", {
-        history,
-        responseLanguage: this.responseLanguage,
-        avatarName: this.currentAvatarId,
-      });
-    } catch (error) {
-      emitAvatarEvent("chat-history", {
-        history: [],
-        responseLanguage: this.responseLanguage,
-        avatarName: this.currentAvatarId,
-      });
-    }
+ async refreshHistory() {
+  const requestId = ++this._historyRequestId;
+  try {
+    const data = await this.brain.history(this.currentAvatarId);
+    if (requestId !== this._historyRequestId) return; // a newer request superseded this one
+    const history = Array.isArray(data?.history) ? data.history : [];
+    this._lastKnownHistory = history;
+    emitAvatarEvent("chat-history", { history, responseLanguage: this.responseLanguage, avatarName: this.currentAvatarId });
+  } catch (error) {
+    if (requestId !== this._historyRequestId) return;
+    emitAvatarEvent("chat-history", { history: [], responseLanguage: this.responseLanguage, avatarName: this.currentAvatarId });
   }
-
+}
   /**
    * Clears the backend's conversation history (today an in-memory list,
    * later a database row/table) and refreshes the panel from it. If the
