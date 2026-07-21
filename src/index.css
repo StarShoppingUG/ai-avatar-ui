@@ -381,12 +381,14 @@ avatar-model {
   gap: 18px;
   background: linear-gradient(180deg, rgba(18,22,34,0.97), rgba(8,10,16,0.97));
 }
+
 .chat-history-card {
   width: min(650px, 100%);
   max-height: min(90vh, 760px);
   overflow: hidden;
   padding: 24px;
   display: grid;
+  grid-template-rows: auto auto 1fr;  /* header, actions, thread — thread takes the rest */
   gap: 18px;
   background: linear-gradient(180deg, rgba(18,22,34,0.97), rgba(8,10,16,0.97));
 }
@@ -565,10 +567,12 @@ avatar-model {
 }
 .chat-history-thread {
   display: grid;
+  align-content: start;
   gap: 12px;
   padding-right: 8px;
   overflow-y: auto;
-  max-height: 520px;
+  min-height: 0;      /* required for a grid child to actually shrink and scroll properly */
+  max-height: none;   /* remove the fixed cap — let 1fr control it instead */
   scrollbar-width: thin;
   scrollbar-color: rgba(92,196,255,0.35) transparent;
 }
