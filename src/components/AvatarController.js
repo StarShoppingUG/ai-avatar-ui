@@ -288,32 +288,17 @@ class AvatarController {
    * if the backend hasn't committed this turn yet, this optimistic entry is
    * what the panel shows in the meantime instead of nothing.
    */
-  appendOptimisticTurn(userText, data) {
-    const now = new Date().toISOString();
-    const base = this._lastKnownHistory || [];
-    const optimistic = [
-      ...base,
-      {
-        role: "user",
-        text: userText,
-        time: now,
-        character_name: this.currentAvatarId,
-      },
-      {
-        role: "assistant",
-        text: data.reply || data.text_en || "",
-        text_en: data.reply || data.text_en || "",
-        text_ja: data.translated_reply || data.text_ja || "",
-        time: now,
-        character_name: this.currentAvatarId,
-      },
-    ];
-    emitAvatarEvent("chat-history", {
-      history: optimistic,
-      responseLanguage: this.responseLanguage,
-      avatarName: this.currentAvatarId,
-    });
-  }
+appendOptimisticTurn(userText, data) {
+  const now = new Date().toISOString();
+  const base = this._lastKnownHistory || [];
+  const optimistic = [...base,
+    { role: "user", text: userText, time: now, character_name: this.currentAvatarId },
+    { role: "assistant", text: data.reply || data.text_en || "", text_en: data.reply || data.text_en || "",
+      text_ja: data.translated_reply || data.text_ja || "", time: now, character_name: this.currentAvatarId },
+  ];
+  this._lastKnownHistory = optimistic; // eagerly reflect it, don't wait for refreshHistory()
+  emitAvatarEvent("chat-history", { history: optimistic, responseLanguage: this.responseLanguage, avatarName: this.currentAvatarId });
+}
 
   applyBehavior(data) {
     const selectedLang = this.responseLanguage;
@@ -662,11 +647,11 @@ class AvatarController {
    * empty list rather than falling back to any locally-remembered state,
    * so the chat history panel simply stays unpopulated in that case.
    */
- async refreshHistory() {
+async refreshHistory() {
   const requestId = ++this._historyRequestId;
   try {
     const data = await this.brain.history(this.currentAvatarId);
-    if (requestId !== this._historyRequestId) return; // a newer request superseded this one
+    if (requestId !== this._historyRequestId) return;
     const history = Array.isArray(data?.history) ? data.history : [];
     this._lastKnownHistory = history;
     emitAvatarEvent("chat-history", { history, responseLanguage: this.responseLanguage, avatarName: this.currentAvatarId });
