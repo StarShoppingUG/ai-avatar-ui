@@ -13,6 +13,7 @@ The latest build is hosted at
 [`ai-avatar-ui-ghost.vercel.app`](https://ai-avatar-ui-ghost.vercel.app/) —
 no npm install or build step needed. Drop this into any page:
 
+Html
 ```html
  <div class="app-shell">
     <div class="avatar-stage">
@@ -26,8 +27,8 @@ no npm install or build step needed. Drop this into any page:
 
   <script type="module" src="/src/main.js"></script>
 ```
-
-```react
+React
+```html
 import { useEffect } from 'react';
 
 export default function AppShell() {
