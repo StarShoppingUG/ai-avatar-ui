@@ -26,6 +26,7 @@ class AvatarController {
     this.lastAudio = null;
     this.audioQueue = [];
     this.isAudioPlaying = false;
+    this._historyRequestId = 0;
   }
 
   async init() {
