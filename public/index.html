@@ -4,87 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Avatar UI — Web Components</title>
-  <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-    }
-
-    body {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 0.4rem 0.5rem;
-      color: #f5f7fb;
-      box-sizing: border-box;
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .page-header {
-      flex: 0 0 auto;
-    }
-
-    .page-header h1 {
-      font-size: 1rem;
-      margin: 0.15rem 0;
-      line-height: 1.25;
-    }
-
-    .page-header h2 {
-      font-size: 0.85rem;
-      margin: 0.1rem 0 0.3rem;
-    }
-
-    .subtitle { color: rgba(245, 247, 251, 0.64); margin-top: 0; }
-    a { color: #5cc4ff; }
-
-    .app-shell {
-      flex: 1 1 auto;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .avatar-stage {
-      flex: 1 1 auto;
-      min-height: 0;
-    }
-
-    avatar-status {
-      flex: 0 0 auto;
-      min-height: 1.6rem;
-    }
-
-    avatar-settings {
-      flex: 0 0 auto;
-      min-height: 2.4rem;
-    }
-
-    avatar-inputs {
-      flex: 0 0 auto;
-      min-height: 2.8rem;
-    }
-
-    @media (max-width: 480px) {
-      body { padding: 0.3rem 0.35rem; }
-      .page-header h1 { font-size: 0.85rem; }
-      .page-header h2 { font-size: 0.75rem; }
-    }
-  </style>
 </head>
 <body>
-  <div class="page-header">
-    <h1>AI Avatar UI</h1>
-
-    <!-- Updated GitHub link section -->
-    <h1>Github: <a href="https://github.com/StarShoppingUG/ai-avatar-ui" target="_blank" rel="noopener noreferrer">StarShoppingUG/ai-avatar-ui</a></h1>
-
-    <h2>Live demo</h2>
-  </div>
-
   <div class="app-shell">
     <div class="avatar-stage">
       <avatar-model backend="https://ai-avatar-backend-xqzl.onrender.com" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
@@ -94,7 +15,6 @@
     <avatar-settings></avatar-settings>
     <avatar-inputs></avatar-inputs>
   </div>
-
   <script type="module" src="/ai-avatar-ui.js"></script>
 </body>
 </html>
