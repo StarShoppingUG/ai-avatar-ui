@@ -7,6 +7,10 @@ Components (built with Vite) that render a talking 3D avatar, handle chat
 input and voice, and stay in sync with a backend for AI replies,
 text-to-speech, and persisted chat history.
 
+## 🚀 Live Demo
+
+**[Check out the live demo →](https://ai-avatar-ui-ghost.vercel.app/)**
+
 ## Load It From Vercel
 
 The latest build is hosted at
