@@ -2,7 +2,6 @@ import * as THREE from "three";
 
 // Viseme synonyms for mouth shapes (aa=open, ih/ee=smile, ou/oh=round, etc.)
 //
-// This class is a holdover from an earlier .vrm-based setup where mouth
 // movement was driven through here via setValue(). The app now drives GLB
 // lip-sync directly through morph targets in LipSync.update(), and emotions
 // through ExpressionEngine. The one thing that still calls setValue() today

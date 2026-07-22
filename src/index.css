@@ -24,13 +24,14 @@
 
 .app-shell {
   display: grid;
-  gap:10px;
+  gap: 10px;
   grid-template-rows: auto 1fr auto;
   max-width: 900px;
   margin: auto;
   padding: 0 10px;
-  height: 96vh;
-  position: relative; /* containing block for the absolutely-positioned captions overlay */
+  height: 96vh;              /* fallback for browsers without dvh/svh support */
+  height: 96svh;             /* uses the smallest guaranteed visible height — safest against toolbars */
+  position: relative;
 }
 /* 1. Top Left Settings */
 avatar-status {
