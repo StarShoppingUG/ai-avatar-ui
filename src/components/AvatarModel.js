@@ -220,16 +220,16 @@ class AvatarModel extends HTMLElement {
 
       this.cameraFraming.resize();
       this.hideLoadingOverlay();
-    } catch (error) {
-   
-      this.currentAvatarModel = null;
-      this.expressionEngine = null;
-      this.lipSync = null;
-      this.animationManager = null;
-      this.emotionSystem = null;
-      this.controller?.emitStatus('Ready (no model)', 'green');
-      this.hideLoadingOverlay();
-    }
+    }  catch (error) {
+  console.error(`[avatar-model] Failed to load avatar "${avatar.name}":`, error);
+  this.currentAvatarModel = null;
+  this.expressionEngine = null;
+  this.lipSync = null;
+  this.animationManager = null;
+  this.emotionSystem = null;
+  this.controller?.emitStatus('Ready (no model)', 'green');
+  this.hideLoadingOverlay();
+}
   }
 
 async attachEngines(avatarModel, personaName) {

@@ -1,8 +1,12 @@
 import { CharacterBrain } from "../avatar/CharacterBrain.js";
 import {
   AVATAR_SOURCES,
+  DEFAULT_AVATAR_ID,
   DEFAULT_AVATAR_NAME,
   getAvatar as lookupAvatar,
+  setPersonaOverride,
+  resetPersonaOverride,
+  hasPersonaOverride,
 } from "../avatar/AvatarSources.js";
 import { emitAvatarEvent } from "./events.js";
 import {
@@ -19,7 +23,7 @@ const AVATAR_LIST = AVATAR_SOURCES;
 class AvatarController {
   constructor(model) {
     this.model = model;
-    this.currentAvatarId = DEFAULT_AVATAR_NAME;
+    this.currentAvatarId = DEFAULT_AVATAR_ID; 
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
     this.brain = new CharacterBrain(model.backend || BACKEND);
     this.voiceCatalog = { en: [], ja: [] };
@@ -97,16 +101,25 @@ class AvatarController {
       if (avatarName) this.selectAvatar(avatarName);
     });
 
-    window.addEventListener("avatar:request-current-profile", () => {
-      const avatar = lookupAvatar(this.currentAvatarId);
-      if (!avatar) return;
-      emitAvatarEvent("update-profile", {
-        name: avatar.name,
-        persona: avatar.persona,
-        personaJa: avatar.personaJa || avatar.persona,
-        voiceEn: avatar.voiceEn,
-        voiceJa: avatar.voiceJa,
+  window.addEventListener("avatar:request-current-profile", () => {
+      this.emitCurrentProfile();
+    });
+
+    window.addEventListener("avatar:edit-persona", (event) => {
+      const { avatarId, persona, personaJa } = event.detail || {};
+      const targetId = avatarId || this.currentAvatarId;
+      if (persona === undefined && personaJa === undefined) return;
+      setPersonaOverride(targetId, {
+        ...(persona !== undefined ? { persona } : {}),
+        ...(personaJa !== undefined ? { personaJa } : {}),
       });
+      if (targetId === this.currentAvatarId) this.emitCurrentProfile();
+    });
+
+    window.addEventListener("avatar:reset-persona", (event) => {
+      const targetId = event.detail?.avatarId || this.currentAvatarId;
+      resetPersonaOverride(targetId);
+      if (targetId === this.currentAvatarId) this.emitCurrentProfile();
     });
 
     window.addEventListener("avatar:set-response-language", (event) => {
@@ -175,6 +188,8 @@ class AvatarController {
     });
 
     window.addEventListener("avatar:reset", () => this.resetConversation());
+
+    
   }
 
   async loadVoiceCatalog() {
@@ -212,21 +227,15 @@ class AvatarController {
     // lookups to an id the backend never saw. Storing avatar.name instead
     // means currentAvatarId always reflects reality, and a mismatch is
     // surfaced immediately rather than failing silently.
-    if (avatar.name !== avatarId) {
+    if (avatar.id !== avatarId) {
       console.warn(
         `[avatar-init] selectAvatar: unknown avatarId "${avatarId}", falling back to "${avatar.name}"`,
       );
     }
-    this.currentAvatarId = avatar.name;
-    this.brain.saveSettings({ last_avatar: avatar.name }).catch(() => {});
+    this.currentAvatarId = avatar.id;    
+    this.brain.saveSettings({ last_avatar: avatar.id }).catch(() => {});
 
-    emitAvatarEvent("update-profile", {
-      name: avatar.name,
-      persona: avatar.persona,
-      personaJa: avatar.personaJa || avatar.persona,
-      voiceEn: avatar.voiceEn,
-      voiceJa: avatar.voiceJa,
-    });
+    this.emitCurrentProfile();
 
     this.emitStatus(`Loading ${avatar.name}…`, "yellow");
     emitAvatarEvent("avatar-loading", { active: true });
@@ -238,8 +247,27 @@ class AvatarController {
 
     // Switching avatars means the chat history panel should now show this
     // avatar's own past messages, not whatever the previous avatar had.
+  // Switching avatars means the chat history panel should now show this
+    // avatar's own past messages, not whatever the previous avatar had.
     this.refreshHistory();
   }
+
+  /** Emits update-profile for the currently-selected avatar, including
+   * whether it currently has a saved persona override (drives the settings
+   * panel's "Reset to default" button enabled/disabled state). */
+  emitCurrentProfile() {
+    const avatar = lookupAvatar(this.currentAvatarId);
+    if (!avatar) return;
+    emitAvatarEvent("update-profile", {
+      name: avatar.name,
+      persona: avatar.persona,
+      personaJa: avatar.personaJa || avatar.persona,
+      voiceEn: avatar.voiceEn,
+      voiceJa: avatar.voiceJa,
+      isCustomPersona: hasPersonaOverride(avatar.id),
+    });
+  }
+  
 
   async handleAsk(text) {
     this.emitStatus("Thinking…", "yellow");
@@ -251,14 +279,14 @@ class AvatarController {
     let reachedBackend = true;
 
     try {
-      data = await this.brain.ask(
-        text,
-        "Default",
-        avatar?.persona,
-        { en: avatar?.voiceEn, ja: avatar?.voiceJa },
-        avatar?.name,
-        speakLanguage,
-      );
+    data = await this.brain.ask(
+  text,
+  "Default",
+  avatar?.persona,
+  { en: avatar?.voiceEn, ja: avatar?.voiceJa },
+  avatar?.name,       // send the display name, not the id
+  speakLanguage,
+);
     } catch (error) {
       reachedBackend = false;
       data = this.brain.offlineBehavior(text);
@@ -291,14 +319,15 @@ class AvatarController {
    */
 appendOptimisticTurn(userText, data) {
   const now = new Date().toISOString();
+  const avatarName = lookupAvatar(this.currentAvatarId)?.name;
   const base = this._lastKnownHistory || [];
   const optimistic = [...base,
-    { role: "user", text: userText, time: now, character_name: this.currentAvatarId },
+    { role: "user", text: userText, time: now, character_name: avatarName },
     { role: "assistant", text: data.reply || data.text_en || "", text_en: data.reply || data.text_en || "",
-      text_ja: data.translated_reply || data.text_ja || "", time: now, character_name: this.currentAvatarId },
+      text_ja: data.translated_reply || data.text_ja || "", time: now, character_name: avatarName },
   ];
-  this._lastKnownHistory = optimistic; // eagerly reflect it, don't wait for refreshHistory()
-  emitAvatarEvent("chat-history", { history: optimistic, responseLanguage: this.responseLanguage, avatarName: this.currentAvatarId });
+  this._lastKnownHistory = optimistic;
+  emitAvatarEvent("chat-history", { history: optimistic, responseLanguage: this.responseLanguage, avatarName });
 }
 
   applyBehavior(data) {
@@ -650,15 +679,16 @@ appendOptimisticTurn(userText, data) {
    */
 async refreshHistory() {
   const requestId = ++this._historyRequestId;
+  const avatarName = lookupAvatar(this.currentAvatarId)?.name;
   try {
-    const data = await this.brain.history(this.currentAvatarId);
+    const data = await this.brain.history(avatarName);
     if (requestId !== this._historyRequestId) return;
     const history = Array.isArray(data?.history) ? data.history : [];
     this._lastKnownHistory = history;
-    emitAvatarEvent("chat-history", { history, responseLanguage: this.responseLanguage, avatarName: this.currentAvatarId });
+    emitAvatarEvent("chat-history", { history, responseLanguage: this.responseLanguage, avatarName });
   } catch (error) {
     if (requestId !== this._historyRequestId) return;
-    emitAvatarEvent("chat-history", { history: [], responseLanguage: this.responseLanguage, avatarName: this.currentAvatarId });
+    emitAvatarEvent("chat-history", { history: [], responseLanguage: this.responseLanguage, avatarName });
   }
 }
   /**
@@ -667,19 +697,20 @@ async refreshHistory() {
    * backend can't be reached, there's nothing server-side to clear yet —
    * refreshHistory() will just show the empty state.
    */
-  async clearChatHistory() {
-    await this.brain.reset(this.currentAvatarId);
-    this.refreshHistory();
-  }
+async clearChatHistory() {
+  const avatarName = lookupAvatar(this.currentAvatarId)?.name;
+  await this.brain.reset(avatarName);
+  this.refreshHistory();
+}
 
-  emitAvailableAvatars() {
-    emitAvatarEvent("available-avatars", {
-      avatars: AVATAR_LIST,
-      currentAvatarId: this.currentAvatarId,
-      currentAvatarName: this.currentAvatarId,
-      responseLanguage: this.responseLanguage,
-    });
-  }
+emitAvailableAvatars() {
+  emitAvatarEvent("available-avatars", {
+    avatars: AVATAR_LIST,
+    currentAvatarId: this.currentAvatarId,
+    currentAvatarName: lookupAvatar(this.currentAvatarId)?.name,
+    responseLanguage: this.responseLanguage,
+  });
+}
 
   emitStatus(text, color = "white") {
     emitAvatarEvent("update-status", { text, color });

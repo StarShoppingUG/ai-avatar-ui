@@ -201,114 +201,116 @@ export class ExpressionEngine {
         this.isTalking = !!talking;
     }
 
-     /* Traverses .glb scene hierarchy to locate the mesh hosting morph keys*/
-    _findFaceMesh() {
-        this.faceMesh = null;
-        const root = this.model?.scene || this.model;
-        if (!root?.traverse) return;
+  /* Traverses .glb scene hierarchy to locate the mesh hosting morph keys.
+   Selects the mesh with the MOST morph targets, rather than matching on
+   name — model sources vary wildly in naming (some use "head", some use
+   generic names like "mesh_8"), but the primary face mesh reliably has by
+   far the richest set of morph targets, since it alone carries the full
+   viseme set plus every emotion/expression shape together. */
+   
+_findFaceMesh() {
+    this.faceMeshes = [];
+    const root = this.model?.scene || this.model;
+    if (!root?.traverse) return;
 
-        root.traverse((obj) => {
-            // Find any mesh that contains valid morph target configuration keys
-            if (obj.isMesh && obj.morphTargetDictionary && obj.morphTargetInfluences) {
-                // Prioritize targeting the main head mesh
-                if (obj.name.toLowerCase().includes('head') || !this.faceMesh) {
-                    this.faceMesh = obj;
-                }
-            }
-        });
-
-        // Initialize target map data pools once mesh tracking registers
-        if (this.faceMesh) {
-            Object.keys(this.faceMesh.morphTargetDictionary).forEach((key) => {
-                this.targetWeights[key] = 0;
-                if (this.currentWeights[key] === undefined) this.currentWeights[key] = 0;
-            });
+    root.traverse((obj) => {
+        if (obj.isMesh && obj.morphTargetDictionary && obj.morphTargetInfluences) {
+            this.faceMeshes.push(obj);
         }
+    });
+
+    // Initialize target map data pools using the union of all keys across meshes
+    this.faceMeshes.forEach((mesh) => {
+        Object.keys(mesh.morphTargetDictionary).forEach((key) => {
+            if (this.targetWeights[key] === undefined) this.targetWeights[key] = 0;
+            if (this.currentWeights[key] === undefined) this.currentWeights[key] = 0;
+        });
+    });
+}
+
+setExpression(emotion) {
+    if (!this.faceMeshes?.length) this._findFaceMesh();
+
+    const clean = String(emotion || 'neutral').trim().toLowerCase();
+    const targetEmotion = EMOTION_ALIASES[clean] || (COMBINED_EXPRESSIONS[clean] ? clean : 'neutral');
+    this.activeEmotion = targetEmotion;
+
+    Object.keys(this.targetWeights).forEach((key) => { this.targetWeights[key] = 0; });
+
+    const designLayout = COMBINED_EXPRESSIONS[targetEmotion] || {};
+    Object.entries(designLayout).forEach(([morphName, targetWeight]) => {
+        // Apply if ANY mesh has this key (union check, not single-mesh check)
+        const existsSomewhere = this.faceMeshes.some(m => m.morphTargetDictionary[morphName] !== undefined);
+        if (existsSomewhere) {
+            this.targetWeights[morphName] = targetWeight;
+        }
+    });
+}
+update(delta) {
+    if (!this.faceMeshes?.length) {
+        this._findFaceMesh();
+        return;
     }
 
-    setExpression(emotion) {
-        if (!this.faceMesh) this._findFaceMesh();
-        
-        const clean = String(emotion || 'neutral').trim().toLowerCase();
-        const targetEmotion = EMOTION_ALIASES[clean] || (COMBINED_EXPRESSIONS[clean] ? clean : 'neutral');
-        this.activeEmotion = targetEmotion;
+    const dt = delta || 0.016;
+    const lerpFactor = 1 - Math.exp(-1.5 * dt);
 
-        // Resets all targets back down to an un-distorted 0.0 baseline state
-        Object.keys(this.targetWeights).forEach((key) => { this.targetWeights[key] = 0; });
+    // 1. Smooth every active emotional shape key (compute once — shared across meshes)
+    Object.keys(this.targetWeights).forEach((key) => {
+        let targetValue = this.targetWeights[key];
 
-        // Maps combined layout parameters onto target states
-        const designLayout = COMBINED_EXPRESSIONS[targetEmotion] || {};
-        Object.entries(designLayout).forEach(([morphName, targetWeight]) => {
-            if (this.faceMesh.morphTargetDictionary[morphName] !== undefined) {
-                this.targetWeights[morphName] = targetWeight;
+        if (this.isTalking) {
+            const isMouthKey = key.includes('mouth') ||
+                               key.includes('jaw') ||
+                               key.includes('lip') ||
+                               key.includes('cheek') ||
+                               key.includes('viseme');
+            if (isMouthKey) {
+                targetValue *= 0.20;
             }
-        });
-    }
-
-       update(delta) {
-        if (!this.faceMesh) {
-            this._findFaceMesh();
-            return;
         }
 
-        const dt = delta || 0.016;
-        const dict = this.faceMesh.morphTargetDictionary;
-        const influences = this.faceMesh.morphTargetInfluences;
-        // Lower this number for an even slower fade; raise it for snappier
-        // expressions 8 → 3.5 → 1.5 → 0.6 → 0.3 → 0.5
-        const lerpFactor = 1 - Math.exp(-1.5 * dt); 
+        this.currentWeights[key] += (targetValue - this.currentWeights[key]) * lerpFactor;
+    });
 
-        // 1. Smoothly interpolate every active emotional shape key
-        Object.keys(this.targetWeights).forEach((key) => {
-            let targetValue = this.targetWeights[key];
-
-            // --- THE CRITICAL FIX: DYNAMIC MOUTH SUPPRESSION (DUCKING) ---
-            // If the avatar is actively talking, aggressively suppress any emotional shape keys 
-            // affecting the lower face so they don't overwrite or choke out the lip sync.
-            if (this.isTalking) {
-                const isMouthKey = key.includes('mouth') || 
-                                   key.includes('jaw') || 
-                                   key.includes('lip') || 
-                                   key.includes('cheek') || 
-                                   key.includes('viseme');
-                                   
-                if (isMouthKey) {
-                    // Reduce emotional intensity on the mouth by 80% to give lip-sync 100% vertex headroom
-                    targetValue *= 0.20; 
-                }
-            }
-
-            this.currentWeights[key] += (targetValue - this.currentWeights[key]) * lerpFactor;
-            
-            // Push values directly to the hardware rendering buffer array index
+    // Push smoothed values to every mesh that has each key
+    this.faceMeshes.forEach((mesh) => {
+        const dict = mesh.morphTargetDictionary;
+        const influences = mesh.morphTargetInfluences;
+        Object.keys(this.currentWeights).forEach((key) => {
             const index = dict[key];
             if (index !== undefined) {
                 influences[index] = Math.max(0, Math.min(1, this.currentWeights[key]));
             }
         });
+    });
 
-        // 2. Compute runtime procedural blinking cycles
-        if (this._blinkState === "waiting") {
-            this._blinkTimer -= dt;
-            if (this._blinkTimer <= 0) this._blinkState = "closing";
-        } else if (this._blinkState === "closing") {
-            this._blinkProgress += dt * 14;
-            if (this._blinkProgress >= 1) { this._blinkProgress = 1; this._blinkState = "opening"; }
-        } else if (this._blinkState === "opening") {
-            this._blinkProgress -= dt * 10;
-            if (this._blinkProgress <= 0) {
-                this._blinkProgress = 0;
-                this._blinkState = "waiting";
-                this._blinkTimer = 3.0 + Math.random() * 3.0;
-            }
+    // 2. Procedural blinking cycle (state machine unchanged)
+    if (this._blinkState === "waiting") {
+        this._blinkTimer -= dt;
+        if (this._blinkTimer <= 0) this._blinkState = "closing";
+    } else if (this._blinkState === "closing") {
+        this._blinkProgress += dt * 14;
+        if (this._blinkProgress >= 1) { this._blinkProgress = 1; this._blinkState = "opening"; }
+    } else if (this._blinkState === "opening") {
+        this._blinkProgress -= dt * 10;
+        if (this._blinkProgress <= 0) {
+            this._blinkProgress = 0;
+            this._blinkState = "waiting";
+            this._blinkTimer = 3.0 + Math.random() * 3.0;
         }
+    }
 
-        // Apply blink tracking additively directly to native keys
-        const leftBlinkIdx = dict['eyeBlinkLeft'] || dict['eyeBlink_L'];
-        const rightBlinkIdx = dict['eyeBlinkRight'] || dict['eyeBlink_R'];
-        
+    // Apply blink across every mesh that has the key
+    this.faceMeshes.forEach((mesh) => {
+        const dict = mesh.morphTargetDictionary;
+        const influences = mesh.morphTargetInfluences;
+        const leftBlinkIdx = dict['eyeBlinkLeft'] ?? dict['eyeBlink_L'];
+        const rightBlinkIdx = dict['eyeBlinkRight'] ?? dict['eyeBlink_R'];
+
         if (leftBlinkIdx !== undefined) influences[leftBlinkIdx] = this._blinkState !== 'waiting' ? this._blinkProgress : 0;
         if (rightBlinkIdx !== undefined) influences[rightBlinkIdx] = this._blinkState !== 'waiting' ? this._blinkProgress : 0;
-    }
+    });
+}
 
 }

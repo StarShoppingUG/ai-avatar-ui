@@ -211,47 +211,41 @@ export class LipSync {
 
     // --- HIGH FIDELITY VISEME MATCHING FOR CHOSEN GLB MODELS ---
     // 1. Dynamically locate your head/face mesh reference from the parent scene tree once per frame
-    let faceMesh = null;
-    const root = this.avatarModel.scene || this.avatarModel;
-    if (root && typeof root.traverse === 'function') {
-      root.traverse((obj) => {
-        if (
-          obj.isMesh &&
-          obj.morphTargetDictionary &&
-          obj.morphTargetInfluences
-        ) {
-          if (obj.name.toLowerCase().includes("head") || !faceMesh) {
-            faceMesh = obj;
-          }
-        }
-      });
+const faceMeshes = [];
+const root = this.avatarModel.scene || this.avatarModel;
+if (root && typeof root.traverse === 'function') {
+  root.traverse((obj) => {
+    if (obj.isMesh && obj.morphTargetDictionary && obj.morphTargetInfluences) {
+      faceMeshes.push(obj);
     }
+  });
+}
+  
 
     // 2. If the face mesh is found, cleanly apply your high-fidelity speech visemes
-    if (faceMesh) {
-      const dict = faceMesh.morphTargetDictionary;
-      const influences = faceMesh.morphTargetInfluences;
+if (faceMeshes.length) {
+  const targetVisemes = ['viseme_aa', 'viseme_I', 'viseme_O', 'viseme_U', 'jawOpen', 'mouthOpen'];
 
-      // 1. Completely clear speech targets from the previous frame step 
-      // (Do NOT clear emotional keys, just speech)
-      const targetVisemes = ['viseme_aa', 'viseme_I', 'viseme_O', 'viseme_U', 'jawOpen', 'mouthOpen'];
-      targetVisemes.forEach(v => {
-        if (dict[v] !== undefined) influences[dict[v]] = 0;
-      });
+  faceMeshes.forEach((mesh) => {
+    const dict = mesh.morphTargetDictionary;
+    const influences = mesh.morphTargetInfluences;
 
-      const visemeAA = dict['viseme_aa'];
-      const visemeO = dict['viseme_O'];
-      const jawFallback = dict['jawOpen'] || dict['mouthOpen'] || dict['mouthClose'];
+    targetVisemes.forEach(v => {
+      if (dict[v] !== undefined) influences[dict[v]] = 0;
+    });
 
-      // 2. Layer your clean conversational speech value directly on top
-      if (visemeAA !== undefined && visemeO !== undefined) {
-        // Since expressions are now ducked by 80%, these will be highly visible and crisp!
-        influences[visemeAA] = Math.min(1.0, influences[visemeAA] + (this.currentMouthOpen * 0.85)); 
-        influences[visemeO] = Math.min(1.0, influences[visemeO] + (this.currentMouthOpen * 0.15));
-      } else if (jawFallback !== undefined) {
-        influences[jawFallback] = Math.min(1.0, influences[jawFallback] + this.currentMouthOpen);
-      }
+    const visemeAA = dict['viseme_aa'];
+    const visemeO = dict['viseme_O'];
+    const jawFallback = dict['jawOpen'] || dict['mouthOpen'] || dict['mouthClose'];
+
+    if (visemeAA !== undefined && visemeO !== undefined) {
+      influences[visemeAA] = Math.min(1.0, influences[visemeAA] + (this.currentMouthOpen * 0.85));
+      influences[visemeO] = Math.min(1.0, influences[visemeO] + (this.currentMouthOpen * 0.15));
+    } else if (jawFallback !== undefined) {
+      influences[jawFallback] = Math.min(1.0, influences[jawFallback] + this.currentMouthOpen);
     }
+  });
+}
 
   }
 

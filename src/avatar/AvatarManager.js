@@ -1,6 +1,8 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { AvatarScale } from './AvatarScale.js';
 import { ExpressionManagerFallback } from './ExpressionManagerFallback.js';
+
 
 /* AvatarManager — loads and positions the avatar body. GLB-only. */
 
@@ -27,6 +29,7 @@ export class AvatarManager {
         this.scene = scene;
         this.currentAvatar = null;
         this.loader = new GLTFLoader();
+        this.loader.setMeshoptDecoder(MeshoptDecoder);
     }
 
     get avatarModel() {

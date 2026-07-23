@@ -96,6 +96,7 @@ class AvatarInputs extends HTMLElement {
 
     this.sendBtn?.addEventListener('click', () => this.submitMessage());
     this.micBtn?.addEventListener('click', () => this.toggleMic());
+
   }
 
   applyUiLanguage(language = 'en') {

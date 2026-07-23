@@ -19,14 +19,22 @@ class AvatarSettings extends HTMLElement {
             <button type="button" class="settings-close" aria-label="Close settings">✕</button>
           </div>
           <div class="settings-body">
-           <div class="profile-card">
+        <div class="profile-card">
               <div class="profile-name"></div>
-              <div class="profile-bio"></div>
+              <textarea class="profile-bio" rows="4"></textarea>
+              <div class="persona-edit-actions">
+                <button type="button" class="persona-save">Save</button>
+                <button type="button" class="persona-reset" disabled>Reset to default</button>
+              </div>
             </div>
-            <div class="settings-group">
-              <label>Avatar</label>
-              <select class="avatar-select"></select>
-            </div>
+   <div class="settings-group">
+  <label>Avatar</label>
+  <button type="button" class="avatar-open">
+    <span class="avatar-open-thumb"></span>
+    <span class="avatar-open-name">Choose avatar</span>
+    <span class="avatar-open-chevron">›</span>
+  </button>
+</div>
             <div class="settings-group">
               <label>Reply language</label>
               <select class="response-language-select"></select>
@@ -40,6 +48,18 @@ class AvatarSettings extends HTMLElement {
               <button type="button" class="history-open">View chat history</button>
             </div>
           </div>
+          <div class="avatar-picker-overlay" aria-hidden="true">
+  <div class="avatar-picker-card" role="dialog" aria-modal="true">
+    <div class="avatar-picker-header">
+      <div class="avatar-picker-title">Choose an avatar</div>
+      <button type="button" class="avatar-picker-close" aria-label="Close">✕</button>
+    </div>
+    <input type="text" class="avatar-search" placeholder="Search avatars" />
+    <div class="avatar-grid" role="listbox" aria-label="Choose an avatar"></div>
+    <div class="avatar-grid-empty" hidden>No avatars match your search.</div>
+  </div>
+</div>
+
           <div class="chat-history-overlay" aria-hidden="true">
             <div class="chat-history-card" role="dialog" aria-modal="true">
               <div class="chat-history-header">
@@ -69,6 +89,9 @@ class AvatarSettings extends HTMLElement {
         </div>
       </div>
     `;
+    this.avatars = [];
+    this.currentAvatarId = null;
+    this.avatarSearchQuery = '';
     this.cacheNodes();
     this.bindEvents();
     this.populateResponseLanguages();
@@ -82,11 +105,15 @@ class AvatarSettings extends HTMLElement {
     this.settingsToggle = this.querySelector('.settings-toggle');
     this.settingsOverlay = this.querySelector('.settings-overlay');
     this.settingsClose = this.querySelector('.settings-close');
-    this.avatarSelect = this.querySelector('.avatar-select');
+    this.avatarSearchInput = this.querySelector('.avatar-search');
+    this.avatarGrid = this.querySelector('.avatar-grid');
+    this.avatarGridEmpty = this.querySelector('.avatar-grid-empty');
     this.responseLanguageSelect = this.querySelector('.response-language-select');
     this.uiLanguageSelect = this.querySelector('.ui-language-select');
-    this.profileName = this.querySelector('.profile-name');
+this.profileName = this.querySelector('.profile-name');
     this.profileBio = this.querySelector('.profile-bio');
+    this.personaSaveBtn = this.querySelector('.persona-save');
+    this.personaResetBtn = this.querySelector('.persona-reset');
     this.historyOpenBtn = this.querySelector('.history-open');
     this.chatHistoryOverlay = this.querySelector('.chat-history-overlay');
     this.historyCloseBtn = this.querySelector('.history-close');
@@ -95,6 +122,11 @@ class AvatarSettings extends HTMLElement {
     this.confirmOverlay = this.querySelector('.confirm-reset-overlay');
     this.confirmCancelBtn = this.querySelector('.confirm-reset-cancel');
     this.confirmConfirmBtn = this.querySelector('.confirm-reset-confirm');
+    this.avatarOpenBtn = this.querySelector('.avatar-open');
+this.avatarOpenThumb = this.querySelector('.avatar-open-thumb');
+this.avatarOpenName = this.querySelector('.avatar-open-name');
+this.avatarPickerOverlay = this.querySelector('.avatar-picker-overlay');
+this.avatarPickerClose = this.querySelector('.avatar-picker-close');
   }
 
   bindEvents() {
@@ -106,9 +138,34 @@ class AvatarSettings extends HTMLElement {
       }
     });
 
-    this.avatarSelect?.addEventListener('change', (event) => {
-      emitAvatarEvent('select-avatar', { avatarId: event.target.value });
+    this.avatarSearchInput?.addEventListener('input', (event) => {
+      this.avatarSearchQuery = event.target.value || '';
+      this.renderAvatarGrid();
     });
+
+    // Event delegation: one listener handles clicks on any current or future
+    // card, so we don't need to rebind per-card listeners on every re-render.
+    this.avatarGrid?.addEventListener('click', (event) => {
+  const card = event.target.closest('.avatar-card');
+  if (!card) return;
+  const avatarId = card.dataset.avatarId;
+  if (!avatarId || avatarId === this.currentAvatarId) return;
+  this.currentAvatarId = avatarId;
+  this.renderAvatarGrid();
+  this.updateAvatarOpenButton();
+  emitAvatarEvent('select-avatar', { avatarId });
+  this.closeAvatarPicker();
+});
+
+    // Basic keyboard support so the grid isn't mouse-only.
+    this.avatarGrid?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const card = event.target.closest('.avatar-card');
+      if (!card) return;
+      event.preventDefault();
+      card.click();
+    });
+
     this.responseLanguageSelect?.addEventListener('change', (event) => {
       emitAvatarEvent('set-response-language', { language: event.target.value });
     });
@@ -135,6 +192,26 @@ class AvatarSettings extends HTMLElement {
     });
     window.addEventListener('avatar:open-chat-history', () => this.openChatHistory());
     window.addEventListener('avatar:chat-history', (event) => this.renderHistory(event.detail?.history || [], event.detail?.responseLanguage, event.detail?.avatarName));
+    this.avatarOpenBtn?.addEventListener('click', () => this.openAvatarPicker());
+this.avatarPickerClose?.addEventListener('click', () => this.closeAvatarPicker());
+this.avatarPickerOverlay?.addEventListener('click', (event) => {
+  if (event.target === this.avatarPickerOverlay) {
+    this.closeAvatarPicker();
+  }
+});
+
+this.personaSaveBtn?.addEventListener('click', () => {
+  const value = this.profileBio?.value ?? '';
+  emitAvatarEvent('edit-persona', { avatarId: this.currentAvatarId, persona: value });
+});
+this.personaResetBtn?.addEventListener('click', () => {
+  emitAvatarEvent('reset-persona', { avatarId: this.currentAvatarId });
+});
+  
+this.personaResetBtn?.addEventListener('click', () => {
+  emitAvatarEvent('reset-persona', { avatarId: this.currentAvatarId });
+});
+  
   }
 
   openSettings() {
@@ -157,23 +234,81 @@ class AvatarSettings extends HTMLElement {
     this.chatHistoryOverlay?.setAttribute('aria-hidden', 'true');
   }
 
+  openAvatarPicker() {
+  this.avatarPickerOverlay?.classList.add('open');
+  this.avatarPickerOverlay?.setAttribute('aria-hidden', 'false');
+  this.avatarSearchInput?.focus();
+}
+
+closeAvatarPicker() {
+  this.avatarPickerOverlay?.classList.remove('open');
+  this.avatarPickerOverlay?.setAttribute('aria-hidden', 'true');
+
+}
+
   populateAvatars(detail = {}) {
     const avatars = Array.isArray(detail.avatars) ? detail.avatars : [];
     const currentAvatarName = detail.currentAvatarName || detail.currentAvatarId;
-    if (!this.avatarSelect) return;
-    this.avatarSelect.innerHTML = avatars
-      .map((avatar) => `<option value="${avatar.name}" ${avatar.name === currentAvatarName ? 'selected' : ''}>${avatar.name}</option>`)
-      .join('');
+    const currentAvatarId = detail.currentAvatarId;
 
+    this.avatars = avatars;
+    this.currentAvatarId = currentAvatarId ?? this.currentAvatarId;
+    this.renderAvatarGrid();
+this.updateAvatarOpenButton();
     if (currentAvatarName) {
-      this.avatarSelect.value = currentAvatarName;
       emitAvatarEvent('request-current-profile');
     }
 
     this.populateResponseLanguages(detail.responseLanguage);
     this.populateUiLanguages();
+    
   }
 
+  // Renders the searchable grid from this.avatars / this.avatarSearchQuery /
+  // this.currentAvatarId. Called on initial load, on every search keystroke,
+  // and after a selection so the highlighted card stays in sync.
+  renderAvatarGrid() {
+    if (!this.avatarGrid) return;
+
+    const query = this.avatarSearchQuery.trim().toLowerCase();
+    const filtered = query
+      ? this.avatars.filter((avatar) => (avatar.name || '').toLowerCase().includes(query))
+      : this.avatars;
+
+    if (this.avatarGridEmpty) {
+      this.avatarGridEmpty.hidden = filtered.length > 0;
+    }
+
+    this.avatarGrid.innerHTML = filtered.map((avatar) => {
+      const isSelected = avatar.id === this.currentAvatarId;
+      const initials = (avatar.name || '?').trim().slice(0, 2).toUpperCase();
+      const thumb = avatar.thumbnail
+        ? `<img src="${avatar.thumbnail}" alt="" loading="lazy" class="avatar-card-thumb" />`
+        : `<div class="avatar-card-fallback">${initials}</div>`;
+      return `
+        <div
+          class="avatar-card${isSelected ? ' avatar-card--selected' : ''}"
+          data-avatar-id="${avatar.id}"
+          role="option"
+          aria-selected="${isSelected}"
+          tabindex="0"
+        >
+          ${thumb}
+          <span class="avatar-card-name">${avatar.name || avatar.id}</span>
+        </div>
+      `;
+    }).join('');
+  }
+updateAvatarOpenButton() {
+  if (!this.avatarOpenName) return;
+  const avatar = this.avatars.find((a) => a.id === this.currentAvatarId);
+  this.avatarOpenName.textContent = avatar?.name || 'Choose avatar';
+  if (this.avatarOpenThumb) {
+    this.avatarOpenThumb.textContent = avatar
+      ? (avatar.name || '?').trim().slice(0, 2).toUpperCase()
+      : '';
+  }
+}
   // preferredLanguage, when given, is the controller's actual current
   // (possibly backend-restored) responseLanguage. Without it, rebuilding
   // the <select>'s innerHTML below wipes any prior selection, and reading
@@ -214,6 +349,8 @@ class AvatarSettings extends HTMLElement {
     if (labels[0]) labels[0].textContent = text.avatarLabel;
     if (labels[1]) labels[1].textContent = text.replyLabel;
     if (labels[2]) labels[2].textContent = text.interfaceLabel;
+
+    if (this.avatarSearchInput) this.avatarSearchInput.placeholder = text.avatarSearchPlaceholder || this.avatarSearchInput.placeholder;
 
     const historyOpen = this.querySelector('.history-open');
     if (historyOpen) historyOpen.textContent = text.historyButton;
@@ -269,7 +406,7 @@ class AvatarSettings extends HTMLElement {
     }
   }
 
-  updateProfile(detail = {}) {
+updateProfile(detail = {}) {
     if (!this.profileName || !this.profileBio) return;
     this.currentProfileDetail = { ...(this.currentProfileDetail || {}), ...detail };
     this.profileName.textContent = detail.name || this.profileName.textContent;
@@ -277,7 +414,13 @@ class AvatarSettings extends HTMLElement {
     const personaText = language === 'ja'
       ? (this.currentProfileDetail.personaJa || detail.personaJa || detail.persona)
       : detail.persona;
-    this.profileBio.textContent = personaText || this.profileBio.textContent;
+
+    if (document.activeElement !== this.profileBio) {
+      this.profileBio.value = personaText || '';
+    }
+    if (this.personaResetBtn) {
+      this.personaResetBtn.disabled = !this.currentProfileDetail.isCustomPersona;
+    }
   }
 
   /**
@@ -373,8 +516,8 @@ class AvatarSettings extends HTMLElement {
   confirmClearHistory() {
     emitAvatarEvent('clear-chat-history');
     this.closeConfirmReset();
-    this.closeChatHistory();
-  }
+    this.closeChatHistory();}
+  
 }
 
 
