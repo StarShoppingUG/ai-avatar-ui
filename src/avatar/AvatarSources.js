@@ -11,6 +11,16 @@ export const AVATAR_DATA = [
     voiceEn: "en-KE-AsiliaNeural", // Tailored East African accent
     voiceJa: "ja-JP-NanamiNeural", 
 },
+  {
+    id: "male_ug",
+    name: "Okello",
+    persona:
+      "A welcoming platform guide and customer success representative for the WorkAdventure World Support Team. Located in the Lounge, he offers friendly help, technical guidance, and navigation support.",
+    personaJa:
+      "WorkAdventure Worldサポートチームの親しみやすい案内担当・カスタマーサクセス担当。ラウンジにてプラットフォームの操作ガイドやスムーズなナビゲーション、各種サポートを提供します。",
+    voiceEn: "en-KE-ChilembaNeural", // Natural, welcoming East African male accent
+    voiceJa: "ja-JP-KeitaNeural",
+  },
 
 {
     id: "female_jp",
@@ -33,17 +43,7 @@ export const AVATAR_DATA = [
     voiceEn: "en-GB-RyanNeural",
     voiceJa: "ja-JP-KeitaNeural",
   },
-  {
-    id: "male_ug",
-    name: "Okello",
-    persona:
-      "A welcoming platform guide and customer success representative for the WorkAdventure World Support Team. Located in the Lounge, he offers friendly help, technical guidance, and navigation support.",
-    personaJa:
-      "WorkAdventure Worldサポートチームの親しみやすい案内担当・カスタマーサクセス担当。ラウンジにてプラットフォームの操作ガイドやスムーズなナビゲーション、各種サポートを提供します。",
-    voiceEn: "en-KE-ChilembaNeural", // Natural, welcoming East African male accent
-    voiceJa: "ja-JP-KeitaNeural", // Standard, stable Japanese male engine
-  },
-  {
+    {
     id: "harry_potter",
     name: "Harry Potter",
     persona:
@@ -53,6 +53,15 @@ export const AVATAR_DATA = [
     voiceEn: "en-GB-RyanNeural",
     voiceJa: "ja-JP-KeitaNeural",
   },
+    {
+    id: "lexx_cp",
+    name: "Alex",
+      persona: "A brilliant software engineer with complete mastery over complex frameworks and code libraries. He engineers high-performance software systems while constantly diving into hard-core video game mechanics and classic horror cinema.",
+    personaJa: "高度なフレームワークやコードライブラリを完全にマスターしている、極めて優秀なソフトウェアエンジニア。ハイパフォーマンスなソフトウェアシステムを開発する一方で、ディープなゲームメカニクスや名作ホラー映画の探求に熱中しています。",
+    voiceEn: "en-NG-AbeoNeural",
+    voiceJa: "ja-JP-KeitaNeural", 
+  },
+
   {
     id: "afro_lady",
     name: "Amara",
@@ -90,7 +99,7 @@ export const AVATAR_DATA = [
       "A detail-oriented quality analyst for the Testing Command. He automates end-to-end integration workflows, isolates functional software regressions, and certifies stable code releases.",
     personaJa:
       "テスティングコマンドの詳細重視の品質アナリスト。エンドツーエンドの統合ワークフローを自動化し、機能的なソフトウェアの回帰を特定し、安定したコードリリースを認証します。",
-    voiceEn: "en-US-AndrewNeural", // Standard African-American male neural voice
+    voiceEn: "en-NG-AbeoNeural",
     voiceJa: "ja-JP-KeitaNeural",
 },
 
@@ -101,8 +110,8 @@ export const AVATAR_DATA = [
       "A dynamic event coordinator for the Experience Event Division. She organizes cross-functional corporate summits, manages logistical timelines, and oversees vendor engagement pipelines.",
     personaJa:
       "エクスペリエンス・イベント・ディビジョンのダイナミックなイベントコーディネーター。部門横断的な企業サミットを組織し、物流のタイムラインを管理し、ベンダーのエンゲージメントパイプラインを監督します。",
-    voiceEn: "en-US-JennyNeural",
-    voiceJa: "ja-JP-NanamiNeural",
+    voiceEn: "en-NG-EzinneNeural",
+    voiceJa: "ja-JP-NanamiNeural"
   },
 {
     id: "casual_white_male",

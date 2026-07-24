@@ -202,7 +202,8 @@ this.avatarPickerOverlay?.addEventListener('click', (event) => {
 
 this.personaSaveBtn?.addEventListener('click', () => {
   const value = this.profileBio?.value ?? '';
-  emitAvatarEvent('edit-persona', { avatarId: this.currentAvatarId, persona: value });
+  const language = getStoredUiLanguage();
+  emitAvatarEvent('edit-persona', { avatarId: this.currentAvatarId, text: value, language });
 });
 this.personaResetBtn?.addEventListener('click', () => {
   emitAvatarEvent('reset-persona', { avatarId: this.currentAvatarId });

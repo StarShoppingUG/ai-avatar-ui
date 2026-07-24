@@ -165,7 +165,7 @@ class AvatarModel extends HTMLElement {
     //BALANCED OVERHEAD LIGHTING SETUP (SOFTENED BRIGHTNESS)
 
     // 1. Base Ambient Light (Lowered from 0.6 to 0.4 to bring back shadow depth)
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
     // 2. Softened Front-Left Key Light (Lowered intensity from 3.2 to 1.6)
     const frontLeftKey = new THREE.DirectionalLight(0xfff5ee, 1.6);

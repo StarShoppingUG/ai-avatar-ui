@@ -75,17 +75,17 @@ export class CharacterBrain {
         if (!res.ok) throw new Error(`Backend /ask failed (${res.status})`);
         return res.json();
     }
-
-    async translate(text, target = 'ja') {
+async translate(text, target = 'ja') {
+        const body = new URLSearchParams();
+        body.set('text', text);
+        body.set('target', target);
         const res = await fetch(`${this.backend}/translate`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, target }),
+            body,
         });
         if (!res.ok) throw new Error(`Backend /translate failed (${res.status})`);
         return res.json();
     }
-
     /** { catalog: { en: [{name,label}], ja: [{name,label}] }, default_en, default_ja } */
     async voices() {
         const res = await fetch(`${this.backend}/voices`);

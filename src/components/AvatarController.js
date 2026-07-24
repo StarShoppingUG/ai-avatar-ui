@@ -105,14 +105,28 @@ class AvatarController {
       this.emitCurrentProfile();
     });
 
-    window.addEventListener("avatar:edit-persona", (event) => {
-      const { avatarId, persona, personaJa } = event.detail || {};
+window.addEventListener("avatar:edit-persona", async (event) => {
+      const { avatarId, text, language } = event.detail || {};
       const targetId = avatarId || this.currentAvatarId;
-      if (persona === undefined && personaJa === undefined) return;
-      setPersonaOverride(targetId, {
-        ...(persona !== undefined ? { persona } : {}),
-        ...(personaJa !== undefined ? { personaJa } : {}),
-      });
+      if (text === undefined) return;
+
+      const isJa = language === "ja";
+      const fields = isJa ? { personaJa: text } : { persona: text };
+
+      try {
+        const targetLang = isJa ? "en" : "ja";
+        const result = await this.brain.translate(text, targetLang);
+        const translated = result?.text ?? "";
+        if (translated) {
+          fields[isJa ? "persona" : "personaJa"] = translated;
+        }
+      } catch (error) {
+        // Backend/translation unavailable — save just the edited language;
+        // the other language keeps whatever it had before (override or default).
+        console.error("[avatar-persona] translate failed, saving single language only:", error);
+      }
+
+      setPersonaOverride(targetId, fields);
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
     });
 

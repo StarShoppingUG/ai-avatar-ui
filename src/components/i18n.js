@@ -7,7 +7,7 @@ export const UI_TEXT = {
   en: {
     settingsTitle: 'Avatar Settings',
     settingsSubtitle: 'Switch avatar, Interface and response language, Chat history.',
-    avatarLabel: 'Avatar',
+    avatarLabel: 'Change avatar',
     replyLabel: 'Reply language',
     interfaceLabel: 'Interface',
     historyButton: 'View chat history',
@@ -37,7 +37,7 @@ export const UI_TEXT = {
   ja: {
     settingsTitle: 'アバター設定',
     settingsSubtitle: 'アバター、返信言語、表示言語を切り替えます。',
-    avatarLabel: 'アバター',
+    avatarLabel: 'アバターを変更',
     replyLabel: '返信言語',
     interfaceLabel: '表示言語',
     historyButton: 'チャット履歴を見る',
