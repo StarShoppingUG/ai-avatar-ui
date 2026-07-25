@@ -21,17 +21,32 @@ Html
 ```html
  <div class="app-shell">
     <div class="avatar-stage">
-      <avatar-model backend= "backend-url" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
+      <avatar-model backend="backend-url" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
       <avatar-captions></avatar-captions>
     </div>
     <avatar-status></avatar-status>
     <avatar-settings></avatar-settings>
-    <avatar-inputs></avatar-inputs>
+
+    <!-- Optional: point avatar-inputs at your own chat UI instead of its
+         built-in textarea/buttons. Each attribute is independent — supply
+         one, two, or all three; omit any of them to keep the built-in
+         default for that piece. See Custom Input Elements below. -->
+    <div class="my-existing-chat-bar">
+      <textarea id="my-chat-input"></textarea>
+      <button id="my-mic-btn">🎤</button>
+      <button id="my-send-btn">Send</button>
+    </div>
+
+    <avatar-inputs
+      text-input="#my-chat-input"
+      send-button="#my-send-btn"
+      mic-button="#my-mic-btn"
+    ></avatar-inputs>
   </div>
 
   <script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
 ```
-React
+
 ```jsx
 import { useEffect } from 'react';
 
@@ -53,16 +68,31 @@ export default function AppShell() {
   return (
     <div className="app-shell">
       <div className="avatar-stage">
-        <avatar-model 
-          backend="backend-url" 
-          avatar-scale="1" 
+        <avatar-model
+          backend="backend-url"
+          avatar-scale="1"
           avatar-vertical-offset="-1.25"
         />
         <avatar-captions />
       </div>
       <avatar-status />
       <avatar-settings />
-      <avatar-inputs />
+
+      {/* Optional: point avatar-inputs at your own chat UI instead of its
+          built-in textarea/buttons. Each attribute is independent — supply
+          one, two, or all three; omit any of them to keep the built-in
+          default for that piece. See Custom Input Elements below. */}
+      <div className="my-existing-chat-bar">
+        <textarea id="my-chat-input" />
+        <button id="my-mic-btn">🎤</button>
+        <button id="my-send-btn">Send</button>
+      </div>
+
+      <avatar-inputs
+        text-input="#my-chat-input"
+        send-button="#my-send-btn"
+        mic-button="#my-mic-btn"
+      />
     </div>
   );
 }
@@ -101,6 +131,8 @@ browser for a live demo and usage notes.
 - **Offline Fallback** — If the backend drops, the avatar keeps moving safely with a neutral expression and an "offline" animation instead of freezing or crashing.
 - **Auto-Timezone Awareness** — Detects the browser's timezone automatically so the AI is grounded in the real current date and time.
 - **Voice Input** — Live interim captions via the browser's SpeechRecognition API, with the final transcript refined server-side via Whisper.
+- **Editable Personas** — Each avatar's persona (English and Japanese) can be edited directly from the settings panel, with a one-click reset back to its built-in default. Edits are per-browser (stored in `localStorage`) and per-avatar, and editing either language automatically translates and fills in the other via the backend's `/translate` endpoint.
+- **Bring-Your-Own Input UI** — `<avatar-inputs>` can adopt an existing text field, send button, and/or mic button already on your page instead of rendering its own — see [Custom Input Elements](#custom-input-elements).
 
 ---
 
@@ -146,7 +178,7 @@ lives in exactly one place.
 - `<avatar-status>` — Shows if the avatar is offline, thinking, or talking.
 - `<avatar-captions>` — Displays the text subtitles on the screen.
 - `<avatar-settings>` — Configuration UI for languages, voice choices, character selection, and chat history.
-- `<avatar-inputs>` — The text box, send button, and microphone controls.
+- `<avatar-inputs>` — The text box, send button, and microphone controls. Optionally binds to your own existing elements instead of its own defaults — see [Custom Input Elements](#custom-input-elements) below.
 
 ---
 
@@ -175,6 +207,38 @@ Components don't reference each other directly — they communicate through
 | `avatar:app:loading` / `avatar:app:ready` | controller | Marks overall app startup boundaries |
 
 ---
+
+## Custom Input Elements
+
+By default `<avatar-inputs>` renders its own textarea, send button, and mic
+button. If your page already has its own chat input UI, you can point
+`<avatar-inputs>` at those elements instead via three optional attributes —
+supply any combination of the three; whichever you omit still falls back to
+the built-in default for that piece:
+
+```html
+<textarea id="my-chat-input"></textarea>
+<button id="my-send-btn">Send</button>
+<button id="my-mic-btn">🎤</button>
+
+<avatar-inputs
+  text-input="#my-chat-input"
+  send-button="#my-send-btn"
+  mic-button="#my-mic-btn"
+></avatar-inputs>
+```
+
+Each attribute is a CSS selector, resolved once when `<avatar-inputs>`
+connects. All existing behavior — sending on Enter, mic recording, Whisper
+transcription via `/stt`, and disabling itself while the avatar is
+thinking/speaking/loading — is wired onto whichever elements are in use,
+built-in or your own. If a selector doesn't match anything at connect time,
+`<avatar-inputs>` logs a warning to the console and falls back to its
+built-in element for that piece rather than failing silently.
+
+Note: when you supply your own `send-button`, `<avatar-inputs>` will not
+overwrite its label/title text when the UI language is switched — that's
+left to you, since the button is yours.
 
 ## Backend
 
@@ -218,7 +282,7 @@ for what that's for.
 | Endpoint | Method | Request | Response |
 |---|---|---|---|
 | `/ask` | POST | `{ text, persona, avatar_persona, character_name, voice_en, voice_ja, speak_language, timezone }` | `{ reply, translated_reply, expression, animation, primary, audio_url_en, audio_url_ja, visemes_en, visemes_ja }` |
-| `/translate` | POST | `{ text, target }` | translated text (JSON) |
+| `/translate` | POST | `application/x-www-form-urlencoded`: `text`, `target` | `{ text, romanization }` |
 | `/voices` | GET | — | `{ catalog: { en: [...], ja: [...] }, default_en, default_ja }` |
 | `/history` | GET | query: `character_name` (optional) | `{ history: [{ role, text/content, text_en?, text_ja?, time, character_name? }, ...] }` |
 | `/settings` | GET | — | `{ ui_language, response_language, last_avatar }` |
@@ -253,6 +317,7 @@ likes.
 What's persisted per browser:
 - Full chat history, per avatar
 - Interface language, reply language, and last-selected avatar
+- Any edited personas (per avatar, per language) — see Editable Personas above
 
 Clearing browser storage (or switching browsers/devices) starts a fresh,
 empty history — there's no cross-device sync without adding real accounts.

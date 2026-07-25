@@ -5,11 +5,22 @@ import { BACKEND } from './constants.js';
 class AvatarInputs extends HTMLElement {
   connectedCallback() {
     this.classList.add('avatar-inputs');
-    this.innerHTML = `
-  <div class="chat-composer">
-    <textarea class="chat-input" rows="1" placeholder="Type a message..." aria-label="Type a message..."></textarea>
-    <div class="composer-actions">
 
+    // Optional attributes let a page supply its own already-built text
+    // input / send button / mic button instead of using the defaults
+    // rendered below. Each is independent — supply one, two, or all three;
+    // whichever aren't supplied still get the built-in element.
+    this._externalInputSelector = this.getAttribute('text-input');
+    this._externalSendSelector = this.getAttribute('send-button');
+    this._externalMicSelector = this.getAttribute('mic-button');
+
+    const textInputMarkup = this._externalInputSelector
+      ? ''
+      : `<textarea class="chat-input" rows="1" placeholder="Type a message..." aria-label="Type a message..."></textarea>`;
+
+    const micButtonMarkup = this._externalMicSelector
+      ? ''
+      : `
       <!-- Microphone Button -->
       <button type="button" id="mic-btn" title="Toggle microphone" aria-label="Toggle microphone">
         <svg xmlns="http://w3.org" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -17,23 +28,27 @@ class AvatarInputs extends HTMLElement {
           <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
           <line x1="12" x2="12" y1="19" y2="22"/>
         </svg>
-      </button>
+      </button>`;
 
-      <!-- Send Button -->
+    const sendButtonMarkup = this._externalSendSelector
+      ? ''
+      : `
 <!-- Paper Airplane Send Button (Pointing Directly Right/East) -->
 <button type="button" id="send-btn" title="Send message" aria-label="Send message">
   <svg xmlns="http://w3.org" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M22 12 2 21l3-9-3-9Z"></path>
     <path d="M5 12h17"></path>
   </svg>
-</button>
+</button>`;
 
-
-
-
+    this.innerHTML = `
+  <div class="chat-composer">
+    ${textInputMarkup}
+    <div class="composer-actions">
+      ${micButtonMarkup}
+      ${sendButtonMarkup}
     </div>
   </div>
-
     `;
     this.cacheNodes();
     this.bindEvents();
@@ -73,11 +88,25 @@ class AvatarInputs extends HTMLElement {
     });
   }
 
-  cacheNodes() {
-    this.input = this.querySelector('.chat-input');
-    this.sendBtn = this.querySelector('#send-btn');
-    this.micBtn = this.querySelector('#mic-btn');
+cacheNodes() {
+    this.input = this._resolveExternal(this._externalInputSelector) || this.querySelector('.chat-input');
+    this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySelector('#send-btn');
+    this.micBtn = this._resolveExternal(this._externalMicSelector) || this.querySelector('#mic-btn');
     this._restoreStatusOnEnd = true;
+  }
+
+  // Looks up a page-supplied element by the CSS selector given in an
+  // attribute (text-input / send-button / mic-button). Warns and falls
+  // back to the built-in default (handled by the `||` at each call site
+  // above) if the selector doesn't match anything at connect time — e.g.
+  // a typo, or the external element hasn't been added to the DOM yet.
+  _resolveExternal(selector) {
+    if (!selector) return null;
+    const el = document.querySelector(selector);
+    if (!el) {
+      console.warn(`[avatar-inputs] "${selector}" not found — using the default element instead.`);
+    }
+    return el;
   }
 
   bindEvents() {
@@ -99,16 +128,16 @@ class AvatarInputs extends HTMLElement {
 
   }
 
-  applyUiLanguage(language = 'en') {
+applyUiLanguage(language = 'en') {
     const text = getUiText(language);
-    if (this.input) {
+    if (this.input && !this._externalInputSelector) {
       this.input.placeholder = text.placeholder;
     }
-    if (this.sendBtn) {
+    if (this.sendBtn && !this._externalSendSelector) {
       this.sendBtn.textContent = text.send;
       this.sendBtn.setAttribute('title', text.send);
     }
-    if (this.micBtn) {
+    if (this.micBtn && !this._externalMicSelector) {
       this.micBtn.setAttribute('title', text.micTitle);
     }
   }

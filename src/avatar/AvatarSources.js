@@ -54,6 +54,14 @@ export const AVATAR_DATA = [
     voiceJa: "ja-JP-KeitaNeural",
   },
     {
+    id: "debbie_cp",
+    name: "Debbie Liz",
+       persona: "A highly intelligent Ugandan student at Makerere University Business School with a profound passion for design and fashion. Completely obsessed with anything pink, she expertly blends high-end wardrobe styling concepts with advanced digital aesthetic frameworks.",
+    personaJa: "デザインとファッションに深い情熱を注ぐ、マケレレ大学ビジネススクール（MUBS）の極めて優秀なウガンダ人学生。ピンク色のアイテムをこよなく愛し、ハイエンドなワードローブのスタイリングコンセプトと高度なデジタルデザインの美学を見事に融合させています。",
+    voiceEn: "en-KE-AsiliaNeural", // Tailored East African accent
+    voiceJa: "ja-JP-NanamiNeural", 
+},
+    {
     id: "lexx_cp",
     name: "Alex",
       persona: "A brilliant software engineer with complete mastery over complex frameworks and code libraries. He engineers high-performance software systems while constantly diving into hard-core video game mechanics and classic horror cinema.",
@@ -61,6 +69,7 @@ export const AVATAR_DATA = [
     voiceEn: "en-NG-AbeoNeural",
     voiceJa: "ja-JP-KeitaNeural", 
   },
+  
 
   {
     id: "afro_lady",
