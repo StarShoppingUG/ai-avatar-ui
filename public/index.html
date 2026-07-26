@@ -10,6 +10,18 @@
       padding: 0;
       height: 100%;
     }
+
+    /* Fills the entire viewport with the same gradient .ai-avatar-shell
+       uses, so the area outside the 900px-capped shell isn't blank —
+       and centers the shell both horizontally and vertically within it. */
+    body {
+      min-height: 100vh;
+      min-height: 100svh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
+    }
   </style>
 </head>
 <body>
