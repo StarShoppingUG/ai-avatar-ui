@@ -11,9 +11,10 @@
       height: 100%;
     }
 
-    /* Fills the entire viewport with the same gradient .ai-avatar-shell
-       uses, so the area outside the 900px-capped shell isn't blank —
-       and centers the shell both horizontally and vertically within it. */
+    /* Single gradient, painted once on body. .ai-avatar-shell is made
+       transparent below so this shows through it uninterrupted, instead
+       of each box rendering its own separately-computed gradient and
+       creating a visible seam where the shell's edges are. */
     body {
       min-height: 100vh;
       min-height: 100svh;
@@ -21,6 +22,10 @@
       align-items: center;
       justify-content: center;
       background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
+    }
+
+    .ai-avatar-shell {
+      background: transparent !important;
     }
   </style>
 </head>
