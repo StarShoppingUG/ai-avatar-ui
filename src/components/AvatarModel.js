@@ -17,8 +17,9 @@ class AvatarModel extends HTMLElement {
   constructor() {
     super();
     this._connected = false;
-    this.backend = this.getAttribute('backend') || BACKEND;
+  this.backend = this.getAttribute('backend') || BACKEND;
     this.currentAvatarId = this.getAttribute('avatar-id') || DEFAULT_AVATAR_NAME;
+    this.instanceId = this.getAttribute('instance') || 'default';
 
     // The only avatar-sizing knobs exposed to consumers: an overall scale
     // multiplier and a vertical position offset. Undefined (unset attribute)
@@ -82,10 +83,10 @@ class AvatarModel extends HTMLElement {
       this.style.height = newValue || '';
       this.resize();
     }
-    if (name === 'backend' && newValue) {
+  if (name === 'backend' && newValue) {
       this.backend = newValue;
       if (this.controller) {
-        this.controller.brain = new CharacterBrain(this.backend);
+        this.controller.brain = new CharacterBrain(this.backend, this.instanceId);
       }
     }
     if (name === 'avatar-scale' || name === 'avatar-vertical-offset') {
@@ -200,10 +201,9 @@ class AvatarModel extends HTMLElement {
     this.canvas?.classList.remove('avatar-canvas--loading');
   }
 
-  async loadAvatar(avatarId, avatarData) {
-    const avatar = avatarData || lookupAvatar(avatarId);
+async loadAvatar(avatarId, avatarData) {
+    const avatar = avatarData || lookupAvatar(avatarId, this.instanceId);
     if (!avatar) return;
-
     this.controller?.emitStatus(`Loading ${avatar.name}…`, 'yellow');
     this.showLoadingOverlay();
 

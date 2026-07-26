@@ -5,6 +5,7 @@ import { RESPONSE_LANGUAGES, DEFAULT_RESPONSE_LANGUAGE, UI_LANGUAGES } from './c
 class AvatarSettings extends HTMLElement {
   connectedCallback() {
     this.classList.add('avatar-settings');
+    this.instanceId = this.getAttribute('instance') || 'default';
     this.innerHTML = `
       <div class="settings-toggle-wrapper">
         <button type="button" class="settings-toggle">⚙️ Settings</button>
@@ -96,9 +97,21 @@ class AvatarSettings extends HTMLElement {
     this.bindEvents();
     this.populateResponseLanguages();
     this.populateUiLanguages();
-    this.applyUiLanguage(getStoredUiLanguage());
-    window.addEventListener('avatar:available-avatars', (event) => this.populateAvatars(event.detail));
-    window.addEventListener('avatar:update-profile', (event) => this.updateProfile(event.detail));
+    this.applyUiLanguage(getStoredUiLanguage(this.instanceId));
+    window.addEventListener('avatar:available-avatars', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.populateAvatars(event.detail);
+    });
+    window.addEventListener('avatar:update-profile', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.updateProfile(event.detail);
+    });
+  }
+
+  // Every emission from this component goes through here so the instance
+  // id is always stamped automatically.
+  emit(name, detail = {}) {
+    emitAvatarEvent(name, detail, this.instanceId);
   }
 
   cacheNodes() {
@@ -110,7 +123,7 @@ class AvatarSettings extends HTMLElement {
     this.avatarGridEmpty = this.querySelector('.avatar-grid-empty');
     this.responseLanguageSelect = this.querySelector('.response-language-select');
     this.uiLanguageSelect = this.querySelector('.ui-language-select');
-this.profileName = this.querySelector('.profile-name');
+    this.profileName = this.querySelector('.profile-name');
     this.profileBio = this.querySelector('.profile-bio');
     this.personaSaveBtn = this.querySelector('.persona-save');
     this.personaResetBtn = this.querySelector('.persona-reset');
@@ -123,10 +136,10 @@ this.profileName = this.querySelector('.profile-name');
     this.confirmCancelBtn = this.querySelector('.confirm-reset-cancel');
     this.confirmConfirmBtn = this.querySelector('.confirm-reset-confirm');
     this.avatarOpenBtn = this.querySelector('.avatar-open');
-this.avatarOpenThumb = this.querySelector('.avatar-open-thumb');
-this.avatarOpenName = this.querySelector('.avatar-open-name');
-this.avatarPickerOverlay = this.querySelector('.avatar-picker-overlay');
-this.avatarPickerClose = this.querySelector('.avatar-picker-close');
+    this.avatarOpenThumb = this.querySelector('.avatar-open-thumb');
+    this.avatarOpenName = this.querySelector('.avatar-open-name');
+    this.avatarPickerOverlay = this.querySelector('.avatar-picker-overlay');
+    this.avatarPickerClose = this.querySelector('.avatar-picker-close');
   }
 
   bindEvents() {
@@ -146,16 +159,16 @@ this.avatarPickerClose = this.querySelector('.avatar-picker-close');
     // Event delegation: one listener handles clicks on any current or future
     // card, so we don't need to rebind per-card listeners on every re-render.
     this.avatarGrid?.addEventListener('click', (event) => {
-  const card = event.target.closest('.avatar-card');
-  if (!card) return;
-  const avatarId = card.dataset.avatarId;
-  if (!avatarId || avatarId === this.currentAvatarId) return;
-  this.currentAvatarId = avatarId;
-  this.renderAvatarGrid();
-  this.updateAvatarOpenButton();
-  emitAvatarEvent('select-avatar', { avatarId });
-  this.closeAvatarPicker();
-});
+      const card = event.target.closest('.avatar-card');
+      if (!card) return;
+      const avatarId = card.dataset.avatarId;
+      if (!avatarId || avatarId === this.currentAvatarId) return;
+      this.currentAvatarId = avatarId;
+      this.renderAvatarGrid();
+      this.updateAvatarOpenButton();
+      this.emit('select-avatar', { avatarId });
+      this.closeAvatarPicker();
+    });
 
     // Basic keyboard support so the grid isn't mouse-only.
     this.avatarGrid?.addEventListener('keydown', (event) => {
@@ -167,13 +180,13 @@ this.avatarPickerClose = this.querySelector('.avatar-picker-close');
     });
 
     this.responseLanguageSelect?.addEventListener('change', (event) => {
-      emitAvatarEvent('set-response-language', { language: event.target.value });
+      this.emit('set-response-language', { language: event.target.value });
     });
     this.uiLanguageSelect?.addEventListener('change', (event) => {
-      emitAvatarEvent('set-ui-language', { language: event.target.value });
+      this.emit('set-ui-language', { language: event.target.value });
     });
     this.historyOpenBtn?.addEventListener('click', () => {
-      emitAvatarEvent('open-chat-history');
+      this.emit('open-chat-history');
       this.openChatHistory();
     });
     this.historyClearBtn?.addEventListener('click', () => this.openConfirmReset());
@@ -190,29 +203,31 @@ this.avatarPickerClose = this.querySelector('.avatar-picker-close');
         this.closeChatHistory();
       }
     });
-    window.addEventListener('avatar:open-chat-history', () => this.openChatHistory());
-    window.addEventListener('avatar:chat-history', (event) => this.renderHistory(event.detail?.history || [], event.detail?.responseLanguage, event.detail?.avatarName));
     this.avatarOpenBtn?.addEventListener('click', () => this.openAvatarPicker());
-this.avatarPickerClose?.addEventListener('click', () => this.closeAvatarPicker());
-this.avatarPickerOverlay?.addEventListener('click', (event) => {
-  if (event.target === this.avatarPickerOverlay) {
-    this.closeAvatarPicker();
-  }
-});
+    this.avatarPickerClose?.addEventListener('click', () => this.closeAvatarPicker());
+    this.avatarPickerOverlay?.addEventListener('click', (event) => {
+      if (event.target === this.avatarPickerOverlay) {
+        this.closeAvatarPicker();
+      }
+    });
 
-this.personaSaveBtn?.addEventListener('click', () => {
-  const value = this.profileBio?.value ?? '';
-  const language = getStoredUiLanguage();
-  emitAvatarEvent('edit-persona', { avatarId: this.currentAvatarId, text: value, language });
-});
-this.personaResetBtn?.addEventListener('click', () => {
-  emitAvatarEvent('reset-persona', { avatarId: this.currentAvatarId });
-});
-  
-this.personaResetBtn?.addEventListener('click', () => {
-  emitAvatarEvent('reset-persona', { avatarId: this.currentAvatarId });
-});
-  
+  this.personaSaveBtn?.addEventListener('click', () => {
+      const value = this.profileBio?.value ?? '';
+      const language = getStoredUiLanguage(this.instanceId);
+      this.emit('edit-persona', { avatarId: this.currentAvatarId, text: value, language });
+    });
+    this.personaResetBtn?.addEventListener('click', () => {
+      this.emit('reset-persona', { avatarId: this.currentAvatarId });
+    });
+
+    window.addEventListener('avatar:open-chat-history', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.openChatHistory();
+    });
+    window.addEventListener('avatar:chat-history', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.renderHistory(event.detail?.history || [], event.detail?.responseLanguage, event.detail?.avatarName);
+    });
   }
 
   openSettings() {
@@ -236,16 +251,15 @@ this.personaResetBtn?.addEventListener('click', () => {
   }
 
   openAvatarPicker() {
-  this.avatarPickerOverlay?.classList.add('open');
-  this.avatarPickerOverlay?.setAttribute('aria-hidden', 'false');
-  this.avatarSearchInput?.focus();
-}
+    this.avatarPickerOverlay?.classList.add('open');
+    this.avatarPickerOverlay?.setAttribute('aria-hidden', 'false');
+    this.avatarSearchInput?.focus();
+  }
 
-closeAvatarPicker() {
-  this.avatarPickerOverlay?.classList.remove('open');
-  this.avatarPickerOverlay?.setAttribute('aria-hidden', 'true');
-
-}
+  closeAvatarPicker() {
+    this.avatarPickerOverlay?.classList.remove('open');
+    this.avatarPickerOverlay?.setAttribute('aria-hidden', 'true');
+  }
 
   populateAvatars(detail = {}) {
     const avatars = Array.isArray(detail.avatars) ? detail.avatars : [];
@@ -255,14 +269,13 @@ closeAvatarPicker() {
     this.avatars = avatars;
     this.currentAvatarId = currentAvatarId ?? this.currentAvatarId;
     this.renderAvatarGrid();
-this.updateAvatarOpenButton();
+    this.updateAvatarOpenButton();
     if (currentAvatarName) {
-      emitAvatarEvent('request-current-profile');
+      this.emit('request-current-profile');
     }
 
     this.populateResponseLanguages(detail.responseLanguage);
     this.populateUiLanguages();
-    
   }
 
   // Renders the searchable grid from this.avatars / this.avatarSearchQuery /
@@ -300,16 +313,18 @@ this.updateAvatarOpenButton();
       `;
     }).join('');
   }
-updateAvatarOpenButton() {
-  if (!this.avatarOpenName) return;
-  const avatar = this.avatars.find((a) => a.id === this.currentAvatarId);
-  this.avatarOpenName.textContent = avatar?.name || 'Choose avatar';
-  if (this.avatarOpenThumb) {
-    this.avatarOpenThumb.textContent = avatar
-      ? (avatar.name || '?').trim().slice(0, 2).toUpperCase()
-      : '';
+
+  updateAvatarOpenButton() {
+    if (!this.avatarOpenName) return;
+    const avatar = this.avatars.find((a) => a.id === this.currentAvatarId);
+    this.avatarOpenName.textContent = avatar?.name || 'Choose avatar';
+    if (this.avatarOpenThumb) {
+      this.avatarOpenThumb.textContent = avatar
+        ? (avatar.name || '?').trim().slice(0, 2).toUpperCase()
+        : '';
+    }
   }
-}
+
   // preferredLanguage, when given, is the controller's actual current
   // (possibly backend-restored) responseLanguage. Without it, rebuilding
   // the <select>'s innerHTML below wipes any prior selection, and reading
@@ -325,7 +340,7 @@ updateAvatarOpenButton() {
       .join('');
     const selectedValue = RESPONSE_LANGUAGES.includes(requested) ? requested : DEFAULT_RESPONSE_LANGUAGE;
     this.responseLanguageSelect.value = selectedValue;
-    // Note: intentionally no emitAvatarEvent here. This method only syncs the
+    // Note: intentionally no emit here. This method only syncs the
     // <select>'s displayed value (on initial connect and when the backend
     // settings arrive). Emitting 'set-response-language' from here caused it
     // to be treated as a real user change and re-saved on every page load,
@@ -334,12 +349,12 @@ updateAvatarOpenButton() {
     // user-initiated selection actually happened.
   }
 
-  populateUiLanguages() {
+populateUiLanguages() {
     if (!this.uiLanguageSelect) return;
     this.uiLanguageSelect.innerHTML = UI_LANGUAGES
       .map((lang) => `<option value="${lang}">${lang === 'en' ? 'English' : '日本語'}</option>`)
       .join('');
-    this.uiLanguageSelect.value = getStoredUiLanguage();
+    this.uiLanguageSelect.value = getStoredUiLanguage(this.instanceId);
   }
 
   applyUiLanguage(language = 'en') {
@@ -411,7 +426,7 @@ updateProfile(detail = {}) {
     if (!this.profileName || !this.profileBio) return;
     this.currentProfileDetail = { ...(this.currentProfileDetail || {}), ...detail };
     this.profileName.textContent = detail.name || this.profileName.textContent;
-    const language = getStoredUiLanguage();
+    const language = getStoredUiLanguage(this.instanceId);
     const personaText = language === 'ja'
       ? (this.currentProfileDetail.personaJa || detail.personaJa || detail.persona)
       : detail.persona;
@@ -432,9 +447,8 @@ updateProfile(detail = {}) {
   renderHistory(list = [], responseLanguage = 'en', avatarName = '') {
     if (!this.historyThread) return;
     this.historyThread.innerHTML = '';
-
-    if (!list.length) {
-      const text = getUiText(getStoredUiLanguage());
+if (!list.length) {
+      const text = getUiText(getStoredUiLanguage(this.instanceId));
       this.historyThread.innerHTML = `<div class="chat-placeholder">${text.conversationCleared}</div>`;
       return;
     }
@@ -447,20 +461,12 @@ updateProfile(detail = {}) {
         const time = entry.time
           ? new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           : '';
-        // Prefer the name tagged on this specific turn (character_name from the
-        // backend); fall back to the currently-selected avatar's name, then to
-        // the generic label if neither is available.
         const speakerName = entry.character_name || avatarName || '';
         if (entry.role === 'assistant') {
-          // Backend always stores both translations; only surface the one(s)
-          // matching the current reply-language setting, same as the live reply.
           const preferEn = showEn && entry.text_en;
           const preferJa = showJa && entry.text_ja;
           if (preferEn) this.appendHistoryItem('avatar', entry.text_en, time, speakerName);
           if (preferJa) this.appendHistoryItem('avatar', entry.text_ja, time, speakerName);
-          // Neither preferred-language variant was available for this turn
-          // (e.g. translation failed for just this one reply) — fall back to
-          // whatever text it does have instead of silently dropping the turn.
           if (!preferEn && !preferJa) {
             const fallback = entry.text_en || entry.text_ja || entry.text || entry.content || '';
             if (fallback) this.appendHistoryItem('avatar', fallback, time, speakerName);
@@ -469,9 +475,6 @@ updateProfile(detail = {}) {
           this.appendHistoryItem(entry.role || 'user', entry.text || entry.content || '', time);
         }
       } catch (err) {
-        // A single malformed entry shouldn't take the rest of the render down
-        // with it — otherwise one bad row silently hides every newer message
-        // that comes after it in the list.
         console.error('Failed to render a chat history entry:', entry, err);
       }
     });
@@ -515,11 +518,10 @@ updateProfile(detail = {}) {
   }
 
   confirmClearHistory() {
-    emitAvatarEvent('clear-chat-history');
+    this.emit('clear-chat-history');
     this.closeConfirmReset();
-    this.closeChatHistory();}
-  
+    this.closeChatHistory();
+  }
 }
-
 
 export { AvatarSettings };

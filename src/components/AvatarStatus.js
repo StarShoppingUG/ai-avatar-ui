@@ -2,23 +2,22 @@ import { getStoredUiLanguage, getUiText, translateStatusText } from './i18n.js';
 import { getLastStatusDetail } from './events.js';
 
 class AvatarStatus extends HTMLElement {
-  connectedCallback() {
+connectedCallback() {
     this.classList.add('avatar-status');
+    this.instanceId = this.getAttribute('instance') || 'default';
     this.innerHTML = `
       <div class="status-pill">
         <span class="status-dot yellow"></span>
         <span class="status-text">Initializing</span>
       </div>
     `;
-    window.addEventListener('avatar:update-status', (event) => this.updateStatus(event.detail));
-    this.applyUiLanguage(getStoredUiLanguage());
+    window.addEventListener('avatar:update-status', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.updateStatus(event.detail);
+    });
+    this.applyUiLanguage(getStoredUiLanguage(this.instanceId));
 
-    // Catch up immediately if status updates already fired before this
-    // element's listener above was registered (see emitAvatarEvent) —
-    // otherwise a missed early event leaves this panel stuck showing the
-    // hardcoded "Initializing" text above even though the app has since
-    // moved on.
-    if (getLastStatusDetail()) this.updateStatus(getLastStatusDetail());
+    if (getLastStatusDetail(this.instanceId)) this.updateStatus(getLastStatusDetail(this.instanceId));
   }
 
   applyUiLanguage(language = 'en') {
@@ -34,7 +33,7 @@ class AvatarStatus extends HTMLElement {
     let color = detail?.color;
     if (!color) {
       const normalized = String(text || '').trim().toLowerCase();
-      if (normalized === 'ready' || normalized === getUiText(getStoredUiLanguage()).statusReady.toLowerCase()) {
+      if (normalized === 'ready' || normalized === getUiText(getStoredUiLanguage(this.instanceId)).statusReady.toLowerCase()) {
         color = 'green';
       } else {
         color = 'white';
@@ -42,7 +41,7 @@ class AvatarStatus extends HTMLElement {
     }
     const statusText = this.querySelector('.status-text');
     if (statusText) {
-      statusText.textContent = translateStatusText(text, getStoredUiLanguage());
+      statusText.textContent = translateStatusText(text, getStoredUiLanguage(this.instanceId));
     }
     const dot = this.querySelector('.status-dot');
     if (!dot) return;

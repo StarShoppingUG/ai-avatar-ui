@@ -11,15 +11,16 @@
 // text forever. Caching the last status here lets a late listener catch up
 // immediately on connect instead of waiting for (and possibly never
 // getting) another update.
-let lastStatusDetail = null;
+const lastStatusDetailByInstance = {};
 
-export function emitAvatarEvent(name, detail = {}) {
+export function emitAvatarEvent(name, detail = {}, instanceId = 'default') {
+  const payload = { ...detail, instance: instanceId };
   if (name === 'update-status') {
-    lastStatusDetail = detail;
+    lastStatusDetailByInstance[instanceId] = payload;
   }
-  window.dispatchEvent(new CustomEvent(`avatar:${name}`, { detail }));
+  window.dispatchEvent(new CustomEvent(`avatar:${name}`, { detail: payload }));
 }
 
-export function getLastStatusDetail() {
-  return lastStatusDetail;
+export function getLastStatusDetail(instanceId = 'default') {
+  return lastStatusDetailByInstance[instanceId] || null;
 }

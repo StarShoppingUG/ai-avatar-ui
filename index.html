@@ -5,17 +5,95 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Avatar</title>
+  <style>
+    /* Simple side-by-side layout for testing two instances at once.
+       Overrides just enough of .ai-avatar-shell's single-instance defaults
+       (margin: auto centering, fixed height) so two can sit side by
+       side without clipping or drifting to one side. */
+    html, body {
+      margin: 0;
+      height: 100%;
+    }
+    .instances-row {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      justify-content: center;
+      padding: 12px;
+      box-sizing: border-box;
+      height: 100vh;
+      height: 100svh;
+    }
+    .instance-column {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .instance-label {
+      color: #9fd6ff;
+      font-family: system-ui, sans-serif;
+      font-weight: 700;
+      padding: 6px 10px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    /* .ai-avatar-shell normally centers itself on the page via margin: auto
+       and sizes itself to 96svh — inside a flex column here, it needs
+       to fill the remaining space instead, and drop the auto-margins
+       that were centering a single full-page instance. */
+    .instance-column > .ai-avatar-shell {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+  </style>
 </head>
 
 <body>
-  <div class="app-shell">
-    <div class="avatar-stage">
-      <avatar-model avatar-scale="1" avatar-vertical-offset="-1.25" backend="http://127.0.0.1:8000"></avatar-model>
-      <avatar-captions></avatar-captions>
+  <div class="instances-row">
+
+    <div class="instance-column">
+      <div class="instance-label">Instance: tutor</div>
+      <div class="ai-avatar-shell">
+        <div class="avatar-stage">
+          <avatar-model
+            instance="tutor"
+            avatar-scale="1"
+            avatar-vertical-offset="-1.25"
+            backend="http://127.0.0.1:8000"
+          ></avatar-model>
+          <avatar-captions instance="tutor"></avatar-captions>
+        </div>
+        <avatar-status instance="tutor"></avatar-status>
+        <avatar-settings instance="tutor"></avatar-settings>
+        <avatar-inputs instance="tutor"></avatar-inputs>
+      </div>
     </div>
-    <avatar-status></avatar-status>
-    <avatar-settings></avatar-settings>
-    <avatar-inputs></avatar-inputs>
+
+    <div class="instance-column">
+      <div class="instance-label">Instance: receptionist</div>
+      <div class="ai-avatar-shell">
+        <div class="avatar-stage">
+          <avatar-model
+            instance="receptionist"
+            avatar-scale="1"
+            avatar-vertical-offset="-1.25"
+            backend="http://127.0.0.1:8000"
+          ></avatar-model>
+          <avatar-captions instance="receptionist"></avatar-captions>
+        </div>
+        <avatar-status instance="receptionist"></avatar-status>
+        <avatar-settings instance="receptionist"></avatar-settings>
+        <avatar-inputs instance="receptionist"></avatar-inputs>
+      </div>
+    </div>
+
   </div>
 
   <script type="module" src="/src/main.js"></script>

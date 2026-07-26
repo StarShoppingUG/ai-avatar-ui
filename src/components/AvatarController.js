@@ -23,9 +23,10 @@ const AVATAR_LIST = AVATAR_SOURCES;
 class AvatarController {
   constructor(model) {
     this.model = model;
+    this.instanceId = model.instanceId || 'default';
     this.currentAvatarId = DEFAULT_AVATAR_ID; 
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
-    this.brain = new CharacterBrain(model.backend || BACKEND);
+    this.brain = new CharacterBrain(model.backend || BACKEND, this.instanceId);
     this.voiceCatalog = { en: [], ja: [] };
     this.lastAudio = null;
     this.audioQueue = [];
@@ -33,8 +34,15 @@ class AvatarController {
     this._historyRequestId = 0;
   }
 
+  // Every emission from this controller goes through here so the instance
+  // id is always stamped automatically — call this instead of importing
+  // emitAvatarEvent directly anywhere in this class.
+  emit(name, detail = {}) {
+    emitAvatarEvent(name, detail, this.instanceId);
+  }
+
   async init() {
-    emitAvatarEvent("app:loading");
+    this.emit("app:loading");
     this.emitStatus("Loading avatar…", "yellow");
     this.registerListeners();
 
@@ -51,7 +59,7 @@ class AvatarController {
     this.refreshHistory();
 
     this.emitStatus("Ready", "green");
-    emitAvatarEvent("app:ready");
+    this.emit("app:ready");
   }
 
   // Pulls this user's saved settings (last avatar, reply language, UI
@@ -73,7 +81,7 @@ class AvatarController {
         this.responseLanguage = settings.response_language;
       }
       if (settings.ui_language && UI_LANGUAGES.includes(settings.ui_language)) {
-        applyUiLanguageToApp(settings.ui_language);
+        applyUiLanguageToApp(settings.ui_language, this.instanceId);
       }
     } catch (error) {
       console.error(
@@ -84,28 +92,34 @@ class AvatarController {
   }
 
   registerListeners() {
-    window.addEventListener("avatar:open-chat-history", () =>
-      this.refreshHistory(),
-    );
-    window.addEventListener("avatar:clear-chat-history", () =>
-      this.clearChatHistory(),
-    );
+    window.addEventListener("avatar:open-chat-history", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.refreshHistory();
+    });
+    window.addEventListener("avatar:clear-chat-history", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.clearChatHistory();
+    });
 
     window.addEventListener("avatar:ask", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const text = String(event.detail?.text || "").trim();
       if (text) this.handleAsk(text);
     });
 
     window.addEventListener("avatar:select-avatar", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const avatarName = event.detail?.avatarId;
       if (avatarName) this.selectAvatar(avatarName);
     });
 
-  window.addEventListener("avatar:request-current-profile", () => {
+    window.addEventListener("avatar:request-current-profile", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       this.emitCurrentProfile();
     });
 
-window.addEventListener("avatar:edit-persona", async (event) => {
+    window.addEventListener("avatar:edit-persona", async (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const { avatarId, text, language } = event.detail || {};
       const targetId = avatarId || this.currentAvatarId;
       if (text === undefined) return;
@@ -121,22 +135,22 @@ window.addEventListener("avatar:edit-persona", async (event) => {
           fields[isJa ? "persona" : "personaJa"] = translated;
         }
       } catch (error) {
-        // Backend/translation unavailable — save just the edited language;
-        // the other language keeps whatever it had before (override or default).
         console.error("[avatar-persona] translate failed, saving single language only:", error);
       }
 
-      setPersonaOverride(targetId, fields);
+      setPersonaOverride(targetId, fields, this.instanceId);
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
     });
 
     window.addEventListener("avatar:reset-persona", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const targetId = event.detail?.avatarId || this.currentAvatarId;
-      resetPersonaOverride(targetId);
+      resetPersonaOverride(targetId, this.instanceId);
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
     });
 
     window.addEventListener("avatar:set-response-language", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const language = event.detail?.language;
       if (RESPONSE_LANGUAGES.includes(language)) {
         this.responseLanguage = language;
@@ -147,15 +161,17 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     });
 
     window.addEventListener("avatar:set-ui-language", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const language = event.detail?.language;
       if (UI_LANGUAGES.includes(language)) {
-        applyUiLanguageToApp(language);
-        emitAvatarEvent("request-current-profile");
+        applyUiLanguageToApp(language, this.instanceId);
+        this.emit("request-current-profile");
         this.brain.saveSettings({ ui_language: language }).catch(() => {});
       }
     });
 
     window.addEventListener("avatar:thinking", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const active = Boolean(event.detail?.active);
       if (active) {
         this.model.emotionSystem?.startThinking();
@@ -165,6 +181,7 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     });
 
     window.addEventListener("avatar:listening", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const active = Boolean(event.detail?.active);
       if (active) {
         this.model.emotionSystem?.startListening();
@@ -174,22 +191,17 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     });
 
     window.addEventListener("avatar:set-voice", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const { lang, voiceName } = event.detail || {};
-      const avatar = lookupAvatar(this.currentAvatarId);
+      const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
       if (!avatar || !voiceName) return;
       if (lang === "ja") avatar.voiceJa = voiceName;
       else avatar.voiceEn = voiceName;
       this.emitStatus("Voice updated.", "green");
     });
 
-    // Lets any panel/dev-tool adjust the loaded avatar's scale and/or
-    // vertical position live — e.g. { scale: 1.1 }, { verticalOffset: -0.8 },
-    // or both together. Persists only for this session/avatar-switch
-    // (avatarScaleConfig lives on the model instance, same lifetime as the
-    // avatar-scale/avatar-vertical-offset attributes) — there's no backend
-    // settings field for it yet, unlike response/UI language, so this
-    // doesn't call brain.saveSettings().
     window.addEventListener("avatar:set-scale", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const { scale, verticalOffset } = event.detail || {};
       if (scale === undefined && verticalOffset === undefined) return;
 
@@ -201,9 +213,10 @@ window.addEventListener("avatar:edit-persona", async (event) => {
       this.emitStatus("Scale updated.", "green");
     });
 
-    window.addEventListener("avatar:reset", () => this.resetConversation());
-
-    
+    window.addEventListener("avatar:reset", (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.resetConversation();
+    });
   }
 
   async loadVoiceCatalog() {
@@ -211,9 +224,9 @@ window.addEventListener("avatar:edit-persona", async (event) => {
       const { catalog } = await this.brain.voices();
 
       this.voiceCatalog = catalog || { en: [], ja: [] };
-      emitAvatarEvent("available-voices", { catalog: this.voiceCatalog });
+      this.emit("available-voices", { catalog: this.voiceCatalog });
     } catch (error) {
-      emitAvatarEvent("available-voices", { catalog: this.voiceCatalog });
+      this.emit("available-voices", { catalog: this.voiceCatalog });
     }
   }
 
@@ -228,7 +241,7 @@ window.addEventListener("avatar:edit-persona", async (event) => {
   }
 
   async selectAvatar(avatarId) {
-    const avatar = lookupAvatar(avatarId);
+    const avatar = lookupAvatar(avatarId, this.instanceId);
     if (!avatar) {
       return;
     }
@@ -252,16 +265,14 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     this.emitCurrentProfile();
 
     this.emitStatus(`Loading ${avatar.name}…`, "yellow");
-    emitAvatarEvent("avatar-loading", { active: true });
+    this.emit("avatar-loading", { active: true });
 
     await this.model.loadAvatar(avatarId, avatar);
 
-    emitAvatarEvent("avatar-loading", { active: false });
+    this.emit("avatar-loading", { active: false });
     this.emitStatus("Ready", "green");
 
     // Switching avatars means the chat history panel should now show this
-    // avatar's own past messages, not whatever the previous avatar had.
-  // Switching avatars means the chat history panel should now show this
     // avatar's own past messages, not whatever the previous avatar had.
     this.refreshHistory();
   }
@@ -270,37 +281,36 @@ window.addEventListener("avatar:edit-persona", async (event) => {
    * whether it currently has a saved persona override (drives the settings
    * panel's "Reset to default" button enabled/disabled state). */
   emitCurrentProfile() {
-    const avatar = lookupAvatar(this.currentAvatarId);
+    const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
     if (!avatar) return;
-    emitAvatarEvent("update-profile", {
+    this.emit("update-profile", {
       name: avatar.name,
       persona: avatar.persona,
       personaJa: avatar.personaJa || avatar.persona,
       voiceEn: avatar.voiceEn,
       voiceJa: avatar.voiceJa,
-      isCustomPersona: hasPersonaOverride(avatar.id),
+      isCustomPersona: hasPersonaOverride(avatar.id, this.instanceId),
     });
   }
-  
 
   async handleAsk(text) {
     this.emitStatus("Thinking…", "yellow");
     this.emitThinking(true);
 
-    const avatar = lookupAvatar(this.currentAvatarId);
+    const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
     const speakLanguage = this.responseLanguage === "ja" ? "ja" : "en";
     let data;
     let reachedBackend = true;
 
     try {
-    data = await this.brain.ask(
-  text,
-  "Default",
-  avatar?.persona,
-  { en: avatar?.voiceEn, ja: avatar?.voiceJa },
-  avatar?.name,       // send the display name, not the id
-  speakLanguage,
-);
+      data = await this.brain.ask(
+        text,
+        "Default",
+        avatar?.persona,
+        { en: avatar?.voiceEn, ja: avatar?.voiceJa },
+        avatar?.name,       // send the display name, not the id
+        speakLanguage,
+      );
     } catch (error) {
       reachedBackend = false;
       data = this.brain.offlineBehavior(text);
@@ -331,18 +341,18 @@ window.addEventListener("avatar:edit-persona", async (event) => {
    * if the backend hasn't committed this turn yet, this optimistic entry is
    * what the panel shows in the meantime instead of nothing.
    */
-appendOptimisticTurn(userText, data) {
-  const now = new Date().toISOString();
-  const avatarName = lookupAvatar(this.currentAvatarId)?.name;
-  const base = this._lastKnownHistory || [];
-  const optimistic = [...base,
-    { role: "user", text: userText, time: now, character_name: avatarName },
-    { role: "assistant", text: data.reply || data.text_en || "", text_en: data.reply || data.text_en || "",
-      text_ja: data.translated_reply || data.text_ja || "", time: now, character_name: avatarName },
-  ];
-  this._lastKnownHistory = optimistic;
-  emitAvatarEvent("chat-history", { history: optimistic, responseLanguage: this.responseLanguage, avatarName });
-}
+  appendOptimisticTurn(userText, data) {
+    const now = new Date().toISOString();
+    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    const base = this._lastKnownHistory || [];
+    const optimistic = [...base,
+      { role: "user", text: userText, time: now, character_name: avatarName },
+      { role: "assistant", text: data.reply || data.text_en || "", text_en: data.reply || data.text_en || "",
+        text_ja: data.translated_reply || data.text_ja || "", time: now, character_name: avatarName },
+    ];
+    this._lastKnownHistory = optimistic;
+    this.emit("chat-history", { history: optimistic, responseLanguage: this.responseLanguage, avatarName });
+  }
 
   applyBehavior(data) {
     const selectedLang = this.responseLanguage;
@@ -529,7 +539,7 @@ appendOptimisticTurn(userText, data) {
       window.speechSynthesis.cancel(); // don't stack announcements
       const utterance = new SpeechSynthesisUtterance(text);
 
-      const avatar = lookupAvatar(this.currentAvatarId);
+      const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
       const neuralVoiceName = avatar?.voiceEn || "";
       // Edge-TTS neural voice names look like "en-US-JennyNeural" — pull the locale out
       // so the browser voice at least matches language/region.
@@ -603,7 +613,7 @@ appendOptimisticTurn(userText, data) {
   async processAudioQueue() {
     if (this.isAudioPlaying || this.audioQueue.length === 0) return;
     this.isAudioPlaying = true;
-    emitAvatarEvent("speaking", { active: true });
+    this.emit("speaking", { active: true });
 
     const nextData = this.audioQueue.shift();
     const captionText =
@@ -646,7 +656,7 @@ appendOptimisticTurn(userText, data) {
       // Only clear the "speaking" state once the whole queue (both the en
       // and ja variants of a reply) has finished — otherwise inputs would
       // briefly re-enable between the two clips in the same turn.
-      emitAvatarEvent("speaking", { active: false });
+      this.emit("speaking", { active: false });
     }
   }
 
@@ -661,7 +671,7 @@ appendOptimisticTurn(userText, data) {
   }
 
   emitThinking(active) {
-    emitAvatarEvent("thinking", { active: Boolean(active) });
+    this.emit("thinking", { active: Boolean(active) });
   }
 
   emitCaption(text, durationMs = 0) {
@@ -672,7 +682,7 @@ appendOptimisticTurn(userText, data) {
 
     this._nextCaptionId = (this._nextCaptionId || 0) + 1;
     const captionId = this._nextCaptionId;
-    emitAvatarEvent("show-caption", {
+    this.emit("show-caption", {
       text: text.trim(),
       durationMs,
       captionId,
@@ -681,7 +691,7 @@ appendOptimisticTurn(userText, data) {
   }
 
   hideCaption(captionId = null) {
-    emitAvatarEvent("hide-caption", { captionId });
+    this.emit("hide-caption", { captionId });
   }
 
   /**
@@ -691,50 +701,51 @@ appendOptimisticTurn(userText, data) {
    * empty list rather than falling back to any locally-remembered state,
    * so the chat history panel simply stays unpopulated in that case.
    */
-async refreshHistory() {
-  const requestId = ++this._historyRequestId;
-  const avatarName = lookupAvatar(this.currentAvatarId)?.name;
-  try {
-    const data = await this.brain.history(avatarName);
-    if (requestId !== this._historyRequestId) return;
-    const history = Array.isArray(data?.history) ? data.history : [];
-    this._lastKnownHistory = history;
-    emitAvatarEvent("chat-history", { history, responseLanguage: this.responseLanguage, avatarName });
-  } catch (error) {
-    if (requestId !== this._historyRequestId) return;
-    emitAvatarEvent("chat-history", { history: [], responseLanguage: this.responseLanguage, avatarName });
+  async refreshHistory() {
+    const requestId = ++this._historyRequestId;
+    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    try {
+      const data = await this.brain.history(avatarName);
+      if (requestId !== this._historyRequestId) return;
+      const history = Array.isArray(data?.history) ? data.history : [];
+      this._lastKnownHistory = history;
+      this.emit("chat-history", { history, responseLanguage: this.responseLanguage, avatarName });
+    } catch (error) {
+      if (requestId !== this._historyRequestId) return;
+      this.emit("chat-history", { history: [], responseLanguage: this.responseLanguage, avatarName });
+    }
   }
-}
+
   /**
    * Clears the backend's conversation history (today an in-memory list,
    * later a database row/table) and refreshes the panel from it. If the
    * backend can't be reached, there's nothing server-side to clear yet —
    * refreshHistory() will just show the empty state.
    */
-async clearChatHistory() {
-  const avatarName = lookupAvatar(this.currentAvatarId)?.name;
-  await this.brain.reset(avatarName);
-  this.refreshHistory();
-}
+  async clearChatHistory() {
+    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    await this.brain.reset(avatarName);
+    this.refreshHistory();
+  }
 
-emitAvailableAvatars() {
-  emitAvatarEvent("available-avatars", {
-    avatars: AVATAR_LIST,
-    currentAvatarId: this.currentAvatarId,
-    currentAvatarName: lookupAvatar(this.currentAvatarId)?.name,
-    responseLanguage: this.responseLanguage,
-  });
-}
+  emitAvailableAvatars() {
+    this.emit("available-avatars", {
+      avatars: AVATAR_LIST,
+      currentAvatarId: this.currentAvatarId,
+      currentAvatarName: lookupAvatar(this.currentAvatarId, this.instanceId)?.name,
+      responseLanguage: this.responseLanguage,
+    });
+  }
 
   emitStatus(text, color = "white") {
-    emitAvatarEvent("update-status", { text, color });
+    this.emit("update-status", { text, color });
   }
 
   resetConversation() {
     this.brain.reset();
     this.model.emotionSystem?.reset();
     this.emitStatus("Conversation reset", "green");
-    emitAvatarEvent("chat-action", { type: "reset" });
+    this.emit("chat-action", { type: "reset" });
   }
 }
 

@@ -19,7 +19,7 @@ no npm install or build step needed. Drop this into any page:
 
 Html
 ```html
- <div class="app-shell">
+ <div class="ai-avatar-shell">
     <div class="avatar-stage">
       <avatar-model backend="backend-url" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
       <avatar-captions></avatar-captions>
@@ -133,6 +133,7 @@ browser for a live demo and usage notes.
 - **Voice Input** — Live interim captions via the browser's SpeechRecognition API, with the final transcript refined server-side via Whisper.
 - **Editable Personas** — Each avatar's persona (English and Japanese) can be edited directly from the settings panel, with a one-click reset back to its built-in default. Edits are per-browser (stored in `localStorage`) and per-avatar, and editing either language automatically translates and fills in the other via the backend's `/translate` endpoint.
 - **Bring-Your-Own Input UI** — `<avatar-inputs>` can adopt an existing text field, send button, and/or mic button already on your page instead of rendering its own — see [Custom Input Elements](#custom-input-elements).
+- **Multiple Avatars Per Page** — Run several fully independent avatar groups on the same page at once (e.g. a "tutor" and a "receptionist" side by side), each with its own conversation, status, captions, and settings — see [Multiple Avatar Instances](#multiple-avatar-instances).
 
 ---
 
@@ -240,6 +241,58 @@ Note: when you supply your own `send-button`, `<avatar-inputs>` will not
 overwrite its label/title text when the UI language is switched — that's
 left to you, since the button is yours.
 
+If you're running [multiple avatar instances](#multiple-avatar-instances)
+on one page, make sure each group's `text-input` / `send-button` /
+`mic-button` selectors point at elements unique to that group — the
+selectors themselves aren't instance-aware, so a selector that matches
+more than one element (or the wrong group's element) will bind to
+whichever element `document.querySelector` finds first.
+
+## Multiple Avatar Instances
+
+By default, all five custom elements (`<avatar-model>`, `<avatar-status>`,
+`<avatar-captions>`, `<avatar-settings>`, `<avatar-inputs>`) act as one
+implicit group — this is what every example above uses, and nothing
+changes if you only ever need one avatar per page.
+
+To run more than one avatar on the same page — each with its own
+conversation, status pill, captions, and settings — give every element in
+a group the same `instance` attribute, and use a different value per
+group:
+
+```html
+<avatar-model instance="tutor"></avatar-model>
+<avatar-status instance="tutor"></avatar-status>
+<avatar-captions instance="tutor"></avatar-captions>
+<avatar-settings instance="tutor"></avatar-settings>
+<avatar-inputs instance="tutor"></avatar-inputs>
+
+<avatar-model instance="receptionist"></avatar-model>
+<avatar-status instance="receptionist"></avatar-status>
+<avatar-captions instance="receptionist"></avatar-captions>
+<avatar-settings instance="receptionist"></avatar-settings>
+<avatar-inputs instance="receptionist"></avatar-inputs>
+```
+
+Each `instance` group is fully isolated:
+- Separate conversation, status, and captions.
+- Independently selecting an avatar, sending a message, or recording
+  audio in one group has no effect on any other group.
+- If two groups happen to load the *same* avatar character, persona and
+  voice edits made in one group's settings panel do not affect the other
+  — overrides are scoped per instance, not just per avatar.
+
+The one exception is interface (UI) language: switching English/Japanese
+in one group's settings panel updates that group's own elements
+immediately, but the underlying preference is shared page-wide — on the
+next page load, all groups start in whichever language was last set by
+any of them.
+
+Elements can also be placed anywhere in the DOM — order doesn't matter,
+only the matching `instance` value does. Omitting `instance` entirely (as
+in every other example in this README) is equivalent to giving every
+element `instance="default"`.
+
 ## Backend
 
 This UI is **backend-agnostic** — every request goes through plain
@@ -317,7 +370,7 @@ likes.
 What's persisted per browser:
 - Full chat history, per avatar
 - Interface language, reply language, and last-selected avatar
-- Any edited personas (per avatar, per language) — see Editable Personas above
+- Any edited personas (per avatar, per language, per instance if using [Multiple Avatar Instances](#multiple-avatar-instances)) — see Editable Personas above
 
 Clearing browser storage (or switching browsers/devices) starts a fresh,
 empty history — there's no cross-device sync without adding real accounts.

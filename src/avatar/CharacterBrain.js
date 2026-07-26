@@ -7,8 +7,9 @@
  * never hard-crashes.
  */
 export class CharacterBrain {
-    constructor(backendUrl = '') {
+    constructor(backendUrl = '', instanceId = 'default') {
         this.backend = backendUrl;
+        this.instanceId = instanceId;
 
         // 🌍 Get user's timezone automatically (detected once, used for all requests)
         this.userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -16,11 +17,15 @@ export class CharacterBrain {
         // No accounts — a random id generated once on first visit and cached
         // in localStorage is what ties chat history and settings to "this
         // browser" on the backend (see X-User-Id in db.py / backend.py).
-        this.userId = CharacterBrain.getOrCreateUserId();
+        // Scoped per instance, not just per browser — otherwise two
+        // <avatar-model instance="..."> groups on the same page would
+        // share one X-User-Id and silently share the same settings row
+        // (last_avatar, response_language, ui_language) on the backend.
+        this.userId = CharacterBrain.getOrCreateUserId(instanceId);
     }
 
-    static getOrCreateUserId() {
-        const STORAGE_KEY = 'avatar_user_id';
+    static getOrCreateUserId(instanceId = 'default') {
+        const STORAGE_KEY = `avatar_user_id:${instanceId}`;
         try {
             let id = localStorage.getItem(STORAGE_KEY);
             if (!id) {

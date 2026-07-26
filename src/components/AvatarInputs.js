@@ -5,6 +5,7 @@ import { BACKEND } from './constants.js';
 class AvatarInputs extends HTMLElement {
   connectedCallback() {
     this.classList.add('avatar-inputs');
+    this.instanceId = this.getAttribute('instance') || 'default';
 
     // Optional attributes let a page supply its own already-built text
     // input / send button / mic button instead of using the defaults
@@ -22,7 +23,7 @@ class AvatarInputs extends HTMLElement {
       ? ''
       : `
       <!-- Microphone Button -->
-      <button type="button" id="mic-btn" title="Toggle microphone" aria-label="Toggle microphone">
+     <button type="button" class="mic-btn" title="Toggle microphone" aria-label="Toggle microphone">
         <svg xmlns="http://w3.org" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
           <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
@@ -34,7 +35,7 @@ class AvatarInputs extends HTMLElement {
       ? ''
       : `
 <!-- Paper Airplane Send Button (Pointing Directly Right/East) -->
-<button type="button" id="send-btn" title="Send message" aria-label="Send message">
+<button type="button" class="send-btn" title="Send message" aria-label="Send message">
   <svg xmlns="http://w3.org" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M22 12 2 21l3-9-3-9Z"></path>
     <path d="M5 12h17"></path>
@@ -52,7 +53,7 @@ class AvatarInputs extends HTMLElement {
     `;
     this.cacheNodes();
     this.bindEvents();
-    this.applyUiLanguage(getStoredUiLanguage());
+  this.applyUiLanguage(getStoredUiLanguage(this.instanceId));
     this.recognizer = null;
     this.isListening = false;
     this.finalTranscript = '';
@@ -70,28 +71,39 @@ class AvatarInputs extends HTMLElement {
     this.isThinking = false;
     this.isLoadingAvatar = false;
     this._typingActive = false;
+
     window.addEventListener('avatar:set-response-language', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       const language = event.detail?.language;
       this.recognitionLanguage = language === 'ja' ? 'ja-JP' : 'en-US';
     });
     window.addEventListener('avatar:speaking', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       this.isSpeaking = Boolean(event.detail?.active);
       this.refreshInputAvailability();
     });
     window.addEventListener('avatar:thinking', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       this.isThinking = Boolean(event.detail?.active);
       this.refreshInputAvailability();
     });
     window.addEventListener('avatar:avatar-loading', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
       this.isLoadingAvatar = Boolean(event.detail?.active);
       this.refreshInputAvailability();
     });
   }
 
-cacheNodes() {
+  // Every emission from this component goes through here so the instance
+  // id is always stamped automatically.
+  emit(name, detail = {}) {
+    emitAvatarEvent(name, detail, this.instanceId);
+  }
+
+  cacheNodes() {
     this.input = this._resolveExternal(this._externalInputSelector) || this.querySelector('.chat-input');
-    this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySelector('#send-btn');
-    this.micBtn = this._resolveExternal(this._externalMicSelector) || this.querySelector('#mic-btn');
+this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySelector('.send-btn');
+    this.micBtn = this._resolveExternal(this._externalMicSelector) || this.querySelector('.mic-btn');
     this._restoreStatusOnEnd = true;
   }
 
@@ -128,7 +140,7 @@ cacheNodes() {
 
   }
 
-applyUiLanguage(language = 'en') {
+  applyUiLanguage(language = 'en') {
     const text = getUiText(language);
     if (this.input && !this._externalInputSelector) {
       this.input.placeholder = text.placeholder;
@@ -152,7 +164,7 @@ applyUiLanguage(language = 'en') {
     // so the typing-detection listener above never sees this transition —
     // drop the listening pose explicitly here instead.
     this.updateTypingState();
-    emitAvatarEvent('ask', { text });
+    this.emit('ask', { text });
   }
 
   // Fires avatar:listening only on actual start/stop transitions (not every
@@ -163,16 +175,16 @@ applyUiLanguage(language = 'en') {
     const hasText = Boolean(this.input?.value.trim());
     if (hasText && !this._typingActive) {
       this._typingActive = true;
-      emitAvatarEvent('listening', { active: true });
+      this.emit('listening', { active: true });
 
       if (!this.isTranscribing) {
-        emitAvatarEvent('update-status', { text: 'Listening…', color: 'yellow' });
+        this.emit('update-status', { text: 'Listening…', color: 'yellow' });
       }
     } else if (!hasText && this._typingActive) {
       this._typingActive = false;
-      emitAvatarEvent('listening', { active: false });
+      this.emit('listening', { active: false });
       if (!this.isTranscribing) {
-        emitAvatarEvent('update-status', { text: 'Ready', color: 'green' });
+        this.emit('update-status', { text: 'Ready', color: 'green' });
       }
     }
   }
@@ -181,19 +193,19 @@ applyUiLanguage(language = 'en') {
   // /stt request is in flight, so the user can't submit before the
   // transcript has actually landed in the input. Also drives the
   // "listening" avatar pose for the same window (recording → transcribing).
-setTranscribing(active) {
-  this.isTranscribing = active;
-  emitAvatarEvent('listening', { active });
-  if (this.input) {
-    if (active) {
-      this._prevPlaceholder = this.input.placeholder;
-      this.input.placeholder = 'Transcribing…';
-    } else if (this._prevPlaceholder !== undefined) {
-      this.input.placeholder = this._prevPlaceholder;
+  setTranscribing(active) {
+    this.isTranscribing = active;
+    this.emit('listening', { active });
+    if (this.input) {
+      if (active) {
+        this._prevPlaceholder = this.input.placeholder;
+        this.input.placeholder = 'Transcribing…';
+      } else if (this._prevPlaceholder !== undefined) {
+        this.input.placeholder = this._prevPlaceholder;
+      }
     }
+    this.refreshInputAvailability();
   }
-  this.refreshInputAvailability();
-}
 
   // Disables text entry, the mic button, and send while the character is
   // talking (speaking), thinking (waiting on the backend), or loading a
@@ -201,28 +213,28 @@ setTranscribing(active) {
   // be queued up yet. Voice recording (isTranscribing) already locked the
   // send button on its own; it's folded into the same check here.
   refreshInputAvailability() {
-  const busy = this.isSpeaking || this.isThinking || this.isLoadingAvatar;
-  const inputBusy = busy || this.isTranscribing;
+    const busy = this.isSpeaking || this.isThinking || this.isLoadingAvatar;
+    const inputBusy = busy || this.isTranscribing;
 
-  if (this.input) {
-    this.input.disabled = inputBusy;
-    this.input.classList.toggle('is-disabled', inputBusy);
+    if (this.input) {
+      this.input.disabled = inputBusy;
+      this.input.classList.toggle('is-disabled', inputBusy);
+    }
+    if (this.micBtn) {
+      this.micBtn.disabled = busy;
+      this.micBtn.classList.toggle('is-disabled', busy);
+    }
+    if (this.sendBtn) {
+      const sendDisabled = busy || this.isTranscribing;
+      this.sendBtn.disabled = sendDisabled;
+      this.sendBtn.classList.toggle('is-disabled', sendDisabled);
+    }
   }
-  if (this.micBtn) {
-    this.micBtn.disabled = busy;
-    this.micBtn.classList.toggle('is-disabled', busy);
-  }
-  if (this.sendBtn) {
-    const sendDisabled = busy || this.isTranscribing;
-    this.sendBtn.disabled = sendDisabled;
-    this.sendBtn.classList.toggle('is-disabled', sendDisabled);
-  }
-}
 
   initRecognizer() {
     const Engine = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Engine) {
-      emitAvatarEvent('update-status', { text: 'Speech recognition not supported.', color: 'red' });
+      this.emit('update-status', { text: 'Speech recognition not supported.', color: 'red' });
       return null;
     }
 
@@ -235,7 +247,7 @@ setTranscribing(active) {
       this.isListening = true;
       this.micBtn?.classList.add('active');
       this.micBtn?.setAttribute('aria-pressed', 'true');
-      emitAvatarEvent('update-status', { text: 'Listening…', color: 'yellow' });
+      this.emit('update-status', { text: 'Listening…', color: 'yellow' });
     };
 
     recognizer.onresult = (event) => {
@@ -265,7 +277,7 @@ setTranscribing(active) {
     };
 
     recognizer.onerror = (event) => {
-      emitAvatarEvent('update-status', { text: `Mic error: ${event.error || 'unknown'}`, color: 'red' });
+      this.emit('update-status', { text: `Mic error: ${event.error || 'unknown'}`, color: 'red' });
       this.stopListening(false);
     };
 
@@ -274,7 +286,7 @@ setTranscribing(active) {
       this.micBtn?.classList.remove('active');
       this.micBtn?.setAttribute('aria-pressed', 'false');
       if (this._restoreStatusOnEnd) {
-        emitAvatarEvent('update-status', { text: 'Ready', color: 'green' });
+        this.emit('update-status', { text: 'Ready', color: 'green' });
       }
       this._restoreStatusOnEnd = true;
     };
@@ -304,7 +316,7 @@ setTranscribing(active) {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
     } catch (error) {
-      emitAvatarEvent('update-status', { text: 'Microphone blocked — allow it in browser settings', color: 'red' });
+      this.emit('update-status', { text: 'Microphone blocked — allow it in browser settings', color: 'red' });
       return;
     }
 
@@ -322,7 +334,7 @@ setTranscribing(active) {
       // for the entire recording, which is the whole point of the lock.
       this.setTranscribing(true);
     } catch (error) {
-      emitAvatarEvent('update-status', { text: 'Could not start microphone', color: 'red' });
+      this.emit('update-status', { text: 'Could not start microphone', color: 'red' });
       this.mediaRecorder?.stop();
       stream.getTracks().forEach((track) => track.stop());
     }
@@ -394,7 +406,7 @@ setTranscribing(active) {
 
     if (!recorder || recorder.state === 'inactive') {
       stream?.getTracks().forEach((track) => track.stop());
-      emitAvatarEvent('update-status', { text: 'Ready', color: 'green' });
+      this.emit('update-status', { text: 'Ready', color: 'green' });
       this.setTranscribing(false);
       return;
     }
@@ -406,12 +418,12 @@ setTranscribing(active) {
       this.audioChunks = [];
 
       if (!blob.size) {
-        emitAvatarEvent('update-status', { text: 'Ready', color: 'green' });
+        this.emit('update-status', { text: 'Ready', color: 'green' });
         this.setTranscribing(false);
         return;
       }
 
-      emitAvatarEvent('update-status', { text: 'Transcribing…', color: 'yellow' });
+      this.emit('update-status', { text: 'Transcribing…', color: 'yellow' });
 
       try {
         const extension = (blob.type.split('/')[1] || 'webm').split(';')[0];
@@ -435,14 +447,14 @@ setTranscribing(active) {
         this.setTranscribing(false);
       }
 
-      emitAvatarEvent('update-status', { text: 'Ready', color: 'green' });
+      this.emit('update-status', { text: 'Ready', color: 'green' });
     };
 
     try {
       recorder.stop();
     } catch (error) {
       stream?.getTracks().forEach((track) => track.stop());
-      emitAvatarEvent('update-status', { text: 'Ready', color: 'green' });
+      this.emit('update-status', { text: 'Ready', color: 'green' });
       this.setTranscribing(false);
     }
   }

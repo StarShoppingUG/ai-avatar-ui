@@ -4,9 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Avatar UI — Web Components</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+  </style>
 </head>
 <body>
-  <div class="app-shell">
+  <div class="ai-avatar-shell">
     <div class="avatar-stage">
       <avatar-model backend="https://ai-avatar-backend-xqzl.onrender.com" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
       <avatar-captions></avatar-captions>
@@ -15,6 +22,7 @@
     <avatar-settings></avatar-settings>
     <avatar-inputs></avatar-inputs>
   </div>
+
   <script type="module" src="/ai-avatar-ui.js"></script>
 </body>
 </html>

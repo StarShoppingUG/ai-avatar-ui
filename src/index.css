@@ -1,4 +1,5 @@
-*{
+.ai-avatar-shell,
+.ai-avatar-shell * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -6,9 +7,10 @@
   font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   font-size: clamp(11px, 1vw + 8px, 16px);
 }
-:root {
+
+.ai-avatar-shell {
   color-scheme: dark;
-  background: #05060b;
+  background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
   padding: 10px;
   color: #f5f7fb;
   --surface-border: rgba(255,255,255,0.08);
@@ -18,11 +20,7 @@
   --green: #4ade80;
   --yellow: #f9c846;
   --red: #fb7185;
-  background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
 
-}
-
-.app-shell {
   display: grid;
   gap: 10px;
   grid-template-rows: auto 1fr auto;
@@ -33,8 +31,9 @@
   height: 96svh;             /* uses the smallest guaranteed visible height — safest against toolbars */
   position: relative;
 }
+
 /* 1. Top Left Settings */
-avatar-status {
+.ai-avatar-shell avatar-status {
   padding: 12px 16px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
@@ -42,10 +41,10 @@ avatar-status {
   grid-column: 1;
   grid-row: 1;
   justify-self: start; /* Standard top-left positioning */
-
 }
+
 /* 2. Top Right Status */
-avatar-settings {
+.ai-avatar-shell avatar-settings {
   grid-column: 2;
   grid-row: 1;
   justify-self: end; /* Standard top-right positioning */
@@ -56,7 +55,7 @@ avatar-settings {
    they used to share indirectly. It's a plain positioned box, so captions
    anchor to ITS bottom edge directly — no dependency on how a given browser
    resolves the containing block for an absolutely-positioned grid item. */
-.avatar-stage {
+.ai-avatar-shell .avatar-stage {
   grid-column: 1 / span 2;
   grid-row: 2;
   position: relative;
@@ -65,7 +64,7 @@ avatar-settings {
   height: 100%;
 }
 
-avatar-captions {
+.ai-avatar-shell avatar-captions {
   position: absolute;
   left: 0;
   right: 0;
@@ -79,7 +78,7 @@ avatar-captions {
 }
 
 /* 5. Inputs Below Captions */
-avatar-inputs {
+.ai-avatar-shell avatar-inputs {
   grid-column: 1 / span 2; /* Keeps consistent full width layout */
   grid-row: 3;
   /* Position unchanged from original layout — this only guarantees that IF
@@ -90,7 +89,7 @@ avatar-inputs {
   z-index: 20;
 }
 
-avatar-model {
+.ai-avatar-shell avatar-model {
   display: inline-flex;
   width: 100%;
   height: 100%;
@@ -102,6 +101,7 @@ avatar-model {
   position: relative;
   z-index: 1;
 }
+
 .avatar-frame {
   width: 100%;
   height: 100%;
@@ -109,9 +109,7 @@ avatar-model {
   border-radius: 30px;
   overflow: hidden;
   margin: auto;
-  
 }
-
 
 .avatar-canvas {
   display: block;
@@ -154,7 +152,6 @@ avatar-model {
   to { transform: rotate(360deg); }
 }
 
-
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -188,6 +185,7 @@ avatar-model {
   opacity: 1;
   transform: translateY(0);
 }
+
 /* Outer layout wrapper */
 /* Container acts as the visible input field with dark/dark-blue theme */
 .chat-composer {
@@ -201,13 +199,11 @@ avatar-model {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
-/* Active typing state shifting into dark blue highlights */
 .chat-composer:focus-within {
   background-color: #0b1329;
-  border-color: #2b4374a0; 
+  border-color: #2b4374a0;
   box-shadow: 0 0 0 4px rgba(71, 114, 201, 0.20);
 }
-/* Textarea styling optimized for dark UI readability */
 .chat-input {
   flex: 1;
   border: none;
@@ -215,26 +211,23 @@ avatar-model {
   background: transparent;
   resize: none;
   line-height: 1.5;
-  color: #f8fafc; /* Crisp bright white/grey text */
+  color: #f8fafc;
   padding: 8px 0;
   max-height: 160px;
 }
-
 .chat-input::placeholder {
-  color: #64748b; 
+  color: #64748b;
 }
 .chat-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-/* Keeps buttons locked right-aligned together */
 .composer-actions {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
 }
-/* Action button configurations */
 .composer-actions button {
   display: inline-flex;
   align-items: center;
@@ -244,26 +237,39 @@ avatar-model {
   outline: none;
   transition: all 0.2s ease;
 }
+
 /* Microphone dark UI variation */
-#mic-btn {
+.mic-btn {
   background-color: transparent;
-  color: #94a3b8; /* Muted silver icons */
+  color: #94a3b8;
   width: 36px;
   height: 36px;
   border-radius: 50%;
 }
-#mic-btn:hover {
-  background-color: #1e293b; /* Dark slate hover feedback */
-  color: #38bdf8; /* Glowing light-blue accent on hover */
+.mic-btn:hover {
+  background-color: #1e293b;
+  color: #38bdf8;
 }
-#mic-btn:disabled,
-#mic-btn.is-disabled {
+.mic-btn:disabled,
+.mic-btn.is-disabled {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
 }
-/* Rightmost Send Action matching your deep blue aesthetic */
-#send-btn {
+.mic-btn.active {
+  color: #ff6b7f;
+  border-color: rgba(255,107,127,0.45);
+  background: rgba(255,107,127,0.16);
+  box-shadow: 0 0 0 1px rgba(255,107,127,0.18), 0 0 18px rgba(255,107,127,0.2);
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+/* Rightmost Send Action */
+.send-btn {
   background-color: #14389b;
   color: #ffffff;
   font-weight: 600;
@@ -273,25 +279,23 @@ avatar-model {
   gap: 6px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
-
-#send-btn:hover {
-  background-color: #004df4; /* Brightens up on hover */
-  box-shadow: 0 0 12px rgba(6, 56, 163, 0.856); /* Subtle glow effect */
+.send-btn:hover {
+  background-color: #004df4;
+  box-shadow: 0 0 12px rgba(6, 56, 163, 0.856);
 }
-/* Locked while /stt is transcribing — dims the button and blocks clicks
-   without touching layout, so nothing shifts when it toggles. */
-#send-btn:disabled,
-#send-btn.is-disabled {
+.send-btn:disabled,
+.send-btn.is-disabled {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
   box-shadow: none;
 }
-#send-btn:disabled:hover,
-#send-btn.is-disabled:hover {
+.send-btn:disabled:hover,
+.send-btn.is-disabled:hover {
   background-color: #14389b;
   box-shadow: none;
 }
+
 .profile-card {
   display: flex;
   flex-direction: column;
@@ -299,8 +303,8 @@ avatar-model {
   border-radius: 20px;
   background: linear-gradient(145deg, #141c2d, #090e1a);
   border: 1px solid #1e293b;
-  box-shadow: 
-    0 16px 40px rgba(0, 0, 0, 0.5), 
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.5),
     0 6px 16px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -311,7 +315,6 @@ avatar-model {
   letter-spacing: 0.04em;
   padding-bottom: 12px;
   margin-bottom: 12px;
-  /* Changed to a clean, subtle solid line that lightly accents the blue text */
   border-bottom: 1px solid rgba(92, 196, 255, 0.15);
 }
 
@@ -361,7 +364,6 @@ avatar-model {
   transform: none;
 }
 
-
 .profile-bio {
   display: block;
   width: 100%;
@@ -386,6 +388,7 @@ avatar-model {
   padding: 10px 12px;
   border-radius: 14px;
 }
+
 .settings-toggle-wrapper {
   display: flex;
   justify-content: flex-end;
@@ -453,7 +456,7 @@ avatar-model {
   overflow: hidden;
   padding: 24px;
   display: grid;
-  grid-template-rows: auto auto 1fr;  /* header, actions, thread — thread takes the rest */
+  grid-template-rows: auto auto 1fr;
   gap: 18px;
   background: linear-gradient(180deg, rgba(18,22,34,0.97), rgba(8,10,16,0.97));
 }
@@ -587,7 +590,6 @@ avatar-model {
   box-shadow: 0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
-
 .history-open:hover {
   background: linear-gradient(135deg, rgba(92,196,255,0.26), rgba(20,56,155,0.4));
   border-color: rgba(92,196,255,0.5);
@@ -617,8 +619,8 @@ avatar-model {
   gap: 12px;
   padding-right: 8px;
   overflow-y: auto;
-  min-height: 0;      /* required for a grid child to actually shrink and scroll properly */
-  max-height: none;   /* remove the fixed cap — let 1fr control it instead */
+  min-height: 0;
+  max-height: none;
   scrollbar-width: thin;
   scrollbar-color: rgba(92,196,255,0.35) transparent;
 }
@@ -707,22 +709,6 @@ avatar-model {
   flex-wrap: wrap;
 }
 
-
-#mic-btn.active {
-  color: #ff6b7f;
-  border-color: rgba(255,107,127,0.45);
-  background: rgba(255,107,127,0.16);
-  box-shadow: 0 0 0 1px rgba(255,107,127,0.18), 0 0 18px rgba(255,107,127,0.2);
-  animation: mic-pulse 1s ease-in-out infinite;
-}
-@keyframes mic-pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.04);
-  }
-}
 .chat-placeholder {
   color: var(--muted);
 }
@@ -733,7 +719,6 @@ avatar-model {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
 }
-
 
 .bubble-text {
   color: #f5f7fb;
@@ -751,17 +736,21 @@ avatar-model {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: #fff;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-weight: 700;
+  background: linear-gradient(135deg, rgba(92,196,255,0.16), rgba(20,56,155,0.28));
+  border: 1px solid rgba(92,196,255,0.28);
+  color: #eaf6ff;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .avatar-open:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.2);
+  background: linear-gradient(135deg, rgba(92,196,255,0.26), rgba(20,56,155,0.4));
+  border-color: rgba(92,196,255,0.5);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.32), 0 0 0 1px rgba(92,196,255,0.18);
   transform: translateY(-1px);
 }
 .avatar-open:active {
@@ -799,7 +788,7 @@ avatar-model {
 .avatar-picker-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1150; /* above settings (1000), below confirm-reset (1200) */
+  z-index: 1150;
   display: none;
   align-items: center;
   justify-content: center;
@@ -853,7 +842,6 @@ avatar-model {
   transform: rotate(90deg);
 }
 
-/* ---- Search input (shared class, but scoped here for clarity) ---- */
 .avatar-picker-card .avatar-search {
   width: 100%;
   box-sizing: border-box;
@@ -870,7 +858,6 @@ avatar-model {
   box-shadow: 0 0 0 3px rgba(92, 196, 255, 0.14);
 }
 
-/* ---- Grid now owns the full modal height ---- */
 .avatar-picker-card .avatar-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
@@ -900,7 +887,6 @@ avatar-model {
   text-align: center;
 }
 
-/* ---- Individual cards ---- */
 .avatar-card {
   position: relative;
   display: flex;
@@ -974,43 +960,4 @@ avatar-model {
 .avatar-card--selected .avatar-card-name {
   color: #fff;
   font-weight: 600;
-}
-.avatar-open {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: 14px;
-  font-weight: 700;
-  background: linear-gradient(135deg, rgba(92,196,255,0.16), rgba(20,56,155,0.28));
-  border: 1px solid rgba(92,196,255,0.28);
-  color: #eaf6ff;
-  letter-spacing: 0.01em;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.avatar-open:hover {
-  background: linear-gradient(135deg, rgba(92,196,255,0.26), rgba(20,56,155,0.4));
-  border-color: rgba(92,196,255,0.5);
-  box-shadow: 0 10px 26px rgba(0,0,0,0.32), 0 0 0 1px rgba(92,196,255,0.18);
-  transform: translateY(-1px);
-}
-.avatar-open:active {
-  transform: translateY(0);
-}
-
-.avatar-open-name {
-  flex: 1;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.avatar-open-chevron {
-  color: rgba(234,246,255,0.7);
-  font-size: 1.1rem;
-  flex-shrink: 0;
 }

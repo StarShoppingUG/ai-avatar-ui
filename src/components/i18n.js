@@ -66,9 +66,9 @@ export const UI_TEXT = {
   },
 };
 
-export function getStoredUiLanguage(defaultLanguage = 'en') {
+export function getStoredUiLanguage(instanceId = 'default', defaultLanguage = 'en') {
   try {
-    const saved = localStorage.getItem('avatar_ui_lang');
+    const saved = localStorage.getItem(`avatar_ui_lang:${instanceId}`);
     return UI_LANGUAGES.includes(saved) ? saved : defaultLanguage;
   } catch (error) {
     return defaultLanguage;
@@ -133,17 +133,26 @@ export function translateStatusText(text, language = 'en') {
   return map[value] || value;
 }
 
-export function applyUiLanguageToApp(language = 'en') {
+export function applyUiLanguageToApp(language = 'en', instanceId = 'default') {
   const lang = UI_LANGUAGES.includes(language) ? language : 'en';
-  document.documentElement.lang = lang;
-  localStorage.setItem('avatar_ui_lang', lang);
+  try {
+    localStorage.setItem(`avatar_ui_lang:${instanceId}`, lang);
+  } catch (error) {
+    // Storage disabled — language just won't persist across reloads for this instance.
+  }
 
-  const settings = document.querySelector('avatar-settings');
-  settings?.applyUiLanguage?.(lang);
+  // document.documentElement.lang is page-wide by nature (there's only one
+  // <html> element) — with multiple instances potentially in different
+  // languages, there's no single correct value to set it to, so it's left
+  // alone here rather than having the last-updated instance silently win.
 
-  const inputs = document.querySelector('avatar-inputs');
-  inputs?.applyUiLanguage?.(lang);
-
-  const status = document.querySelector('avatar-status');
-  status?.applyUiLanguage?.(lang);
+  document.querySelectorAll('avatar-settings').forEach((el) => {
+    if ((el.instanceId || 'default') === instanceId) el.applyUiLanguage?.(lang);
+  });
+  document.querySelectorAll('avatar-inputs').forEach((el) => {
+    if ((el.instanceId || 'default') === instanceId) el.applyUiLanguage?.(lang);
+  });
+  document.querySelectorAll('avatar-status').forEach((el) => {
+    if ((el.instanceId || 'default') === instanceId) el.applyUiLanguage?.(lang);
+  });
 }

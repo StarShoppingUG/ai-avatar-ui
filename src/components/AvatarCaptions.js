@@ -1,9 +1,16 @@
 class AvatarCaptions extends HTMLElement {
-  connectedCallback() {
+connectedCallback() {
     this.classList.add('avatar-captions');
+    this.instanceId = this.getAttribute('instance') || 'default';
     this.innerHTML = `<div class="avatar-caption" aria-live="polite"></div>`;
-    window.addEventListener('avatar:show-caption', (event) => this.showCaption(event.detail?.text, event.detail?.durationMs, event.detail?.captionId));
-    window.addEventListener('avatar:hide-caption', (event) => this.hideCaption(event.detail?.captionId));
+    window.addEventListener('avatar:show-caption', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.showCaption(event.detail?.text, event.detail?.durationMs, event.detail?.captionId);
+    });
+    window.addEventListener('avatar:hide-caption', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.hideCaption(event.detail?.captionId);
+    });
   }
 
   showCaption(text, durationMs = 0, captionId = null) {

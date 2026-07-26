@@ -334,12 +334,23 @@ export const AVATAR_SOURCES = AVATAR_DATA.map((avatar) => ({
 
 export const DEFAULT_AVATAR_ID = AVATAR_SOURCES[0].id;
 export const DEFAULT_AVATAR_NAME = AVATAR_SOURCES[0].name;
-export function getAvatar(avatarId) {
-  const base = AVATAR_SOURCES.find((avatar) => avatar.id === avatarId) || AVATAR_SOURCES[0];
-  const override = readPersonaOverrides()[base.id];
+export function getAvatar(avatarId, instanceId = 'default') {
+  const base = (
+    AVATAR_SOURCES.find((avatar) => avatar.id === avatarId) ||
+    AVATAR_SOURCES[0]
+  );
+  const override = readPersonaOverrides()[overrideKey(instanceId, base.id)];
   return override ? { ...base, ...override } : base;
 }
+
 const PERSONA_OVERRIDE_KEY = 'avatar_persona_overrides';
+
+// Overrides are keyed by "instanceId::avatarId" — the same avatar loaded in
+// two different <avatar-model instance="..."> groups gets fully independent
+// persona edits, never shared between them.
+function overrideKey(instanceId, avatarId) {
+  return `${instanceId}::${avatarId}`;
+}
 
 function readPersonaOverrides() {
   try {
@@ -359,20 +370,21 @@ function writePersonaOverrides(overrides) {
   }
 }
 
-export function hasPersonaOverride(avatarId) {
-  return Boolean(readPersonaOverrides()[avatarId]);
+export function hasPersonaOverride(avatarId, instanceId = 'default') {
+  return Boolean(readPersonaOverrides()[overrideKey(instanceId, avatarId)]);
 }
 
 /** @param {{persona?: string, personaJa?: string}} fields — only pass what changed */
-export function setPersonaOverride(avatarId, fields = {}) {
+export function setPersonaOverride(avatarId, fields = {}, instanceId = 'default') {
   const overrides = readPersonaOverrides();
-  overrides[avatarId] = { ...(overrides[avatarId] || {}), ...fields };
+  const key = overrideKey(instanceId, avatarId);
+  overrides[key] = { ...(overrides[key] || {}), ...fields };
   writePersonaOverrides(overrides);
 }
 
-export function resetPersonaOverride(avatarId) {
+export function resetPersonaOverride(avatarId, instanceId = 'default') {
   const overrides = readPersonaOverrides();
-  delete overrides[avatarId];
+  delete overrides[overrideKey(instanceId, avatarId)];
   writePersonaOverrides(overrides);
 }
 
