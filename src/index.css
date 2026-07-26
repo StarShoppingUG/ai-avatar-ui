@@ -7,10 +7,9 @@
   font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   font-size: clamp(11px, 1vw + 8px, 16px);
 }
-
 .ai-avatar-shell {
   color-scheme: dark;
-  background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
+  background: transparent;
   padding: 10px;
   color: #f5f7fb;
   --surface-border: rgba(255,255,255,0.08);
@@ -35,12 +34,15 @@
 /* 1. Top Left Settings */
 .ai-avatar-shell avatar-status {
   padding: 12px 16px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2);
   height: min-content;
   grid-column: 1;
   grid-row: 1;
   justify-self: start; /* Standard top-left positioning */
+  
 }
 
 /* 2. Top Right Status */
@@ -51,10 +53,6 @@
 }
 
 /* 4. Captions Overlaid On The Avatar */
-/* .avatar-stage wraps avatar-model + avatar-captions and owns the grid slot
-   they used to share indirectly. It's a plain positioned box, so captions
-   anchor to ITS bottom edge directly — no dependency on how a given browser
-   resolves the containing block for an absolutely-positioned grid item. */
 .ai-avatar-shell .avatar-stage {
   grid-column: 1 / span 2;
   grid-row: 2;
@@ -75,6 +73,7 @@
   display: grid;
   place-items: center start;
   z-index: 30;
+
 }
 
 /* 5. Inputs Below Captions */
@@ -159,7 +158,10 @@
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
 }
+
+
 .status-dot {
   width: 12px;
   height: 12px;
@@ -173,13 +175,14 @@
 
 .avatar-caption {
   width: 100%;
-  color: #f2f7ff;
+  color: #fff;
   line-height: 1.6;
   text-align:center;
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.24s ease, transform 0.24s ease;
   font-size: 1.1rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
 }
 .avatar-caption.visible {
   opacity: 1;
@@ -200,9 +203,9 @@
   transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 .chat-composer:focus-within {
-  background-color: #0b1329;
-  border-color: #2b4374a0;
-  box-shadow: 0 0 0 4px rgba(71, 114, 201, 0.20);
+  background-color: rgba(20, 56, 155, 0.14);
+  border-color: rgba(92, 196, 255, 0.4);
+  box-shadow: 0 0 0 4px rgba(92, 196, 255, 0.16);
 }
 .chat-input {
   flex: 1;
@@ -211,13 +214,23 @@
   background: transparent;
   resize: none;
   line-height: 1.5;
-  color: #f8fafc;
+  color: #ffffff;
   padding: 8px 0;
   max-height: 160px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
 }
+
+/* Fixes placeholder to prevent default browser blur/fuzziness */
 .chat-input::placeholder {
-  color: #64748b;
+  color: #becde1;
+  opacity: 1; /* Eliminates browser default fading */
+  /* The "No Blur" Intermediate Fix: Keeps it soft but perfectly crisp */
+  text-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.45), /* A very small, tight drop down */
+    0 0 1px rgba(0, 0, 0, 0.25);   /* A tiny, soft wrapper shadow */
 }
+
+
 .chat-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -247,8 +260,9 @@
   border-radius: 50%;
 }
 .mic-btn:hover {
-  background-color: #1e293b;
-  color: #38bdf8;
+  color: white;
+  background-color: #95addf;
+  box-shadow: 0 0 12px rgba(6, 56, 163, 0.856);
 }
 .mic-btn:disabled,
 .mic-btn.is-disabled {
@@ -257,9 +271,9 @@
   pointer-events: none;
 }
 .mic-btn.active {
-  color: #ff6b7f;
-  border-color: rgba(255,107,127,0.45);
-  background: rgba(255,107,127,0.16);
+  background-color: #ff6b7f;
+  border-color: red;
+  color: white;
   box-shadow: 0 0 0 1px rgba(255,107,127,0.18), 0 0 18px rgba(255,107,127,0.2);
   animation: mic-pulse 1s ease-in-out infinite;
 }
@@ -280,7 +294,7 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 .send-btn:hover {
-  background-color: #004df4;
+  background-color: #bec6fc;
   box-shadow: 0 0 12px rgba(6, 56, 163, 0.856);
 }
 .send-btn:disabled,
@@ -402,16 +416,23 @@
   color: #fff;
   box-shadow: 0 4px 14px rgba(0,0,0,0.2);
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
+  
 }
+
 .settings-toggle:hover,
 .history-open:hover,
 .history-clear:hover,
 .confirm-reset-cancel:hover,
 .confirm-reset-confirm:hover {
-  background: rgba(255,255,255,0.12);
   transform: translateY(-1px);
-  border-color: rgba(92,196,255,0.3);
+  background: rgba(255, 255, 255, 0.16);     /* 1. Brightens the glass background */
+  border-color: rgba(255, 255, 255, 0.25);   /* 2. Sharpens the border highlight */
+  transform: translateY(-2px);               /* 3. Lifts the button slightly up */
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); /* 4. Expands the shadow for depth */
+  cursor: pointer;   
 }
+
 .settings-overlay,
 .chat-history-overlay,
 .confirm-reset-overlay {
