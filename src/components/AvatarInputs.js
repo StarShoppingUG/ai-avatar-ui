@@ -66,7 +66,8 @@ class AvatarInputs extends HTMLElement {
     this.mediaRecorder = null;
     this.mediaStream = null;
     this.audioChunks = [];
-    this.isTranscribing = false;
+this.isTranscribing = false;
+    this.isRecording = false;
     this.isSpeaking = false;
     this.isThinking = false;
     this.isLoadingAvatar = false;
@@ -212,9 +213,9 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
   // newly-selected avatar — i.e. any state where a new message shouldn't
   // be queued up yet. Voice recording (isTranscribing) already locked the
   // send button on its own; it's folded into the same check here.
-  refreshInputAvailability() {
+refreshInputAvailability() {
     const busy = this.isSpeaking || this.isThinking || this.isLoadingAvatar;
-    const inputBusy = busy || this.isTranscribing;
+    const inputBusy = busy || this.isTranscribing || this.isRecording;
 
     if (this.input) {
       this.input.disabled = inputBusy;
@@ -225,12 +226,11 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
       this.micBtn.classList.toggle('is-disabled', busy);
     }
     if (this.sendBtn) {
-      const sendDisabled = busy || this.isTranscribing;
+      const sendDisabled = busy || this.isTranscribing || this.isRecording;
       this.sendBtn.disabled = sendDisabled;
       this.sendBtn.classList.toggle('is-disabled', sendDisabled);
     }
   }
-
   initRecognizer() {
     const Engine = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Engine) {
@@ -325,14 +325,19 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
     this.mediaRecorder = this.initMediaRecorder(stream);
     this.mediaRecorder?.start();
 
-    this.finalTranscript = '';
+this.finalTranscript = '';
     this.recognizer.lang = this.recognitionLanguage;
     try {
       this.recognizer.start();
-      // Locked from the moment listening starts (not just during the
-      // backend request) — otherwise the send button/Enter stays clickable
-      // for the entire recording, which is the whole point of the lock.
-      this.setTranscribing(true);
+      // Locks the send button/Enter for the whole recording (not just the
+      // actual backend transcription call) — but does NOT touch the
+      // placeholder here. The live recognized speech should stay visible
+      // in the input while recording; "Transcribing…" only appears once
+      // recording stops and the audio is actually being sent to /stt (see
+      // finishRecordingAndTranscribe below).
+      this.isRecording = true;
+      this.emit('listening', { active: true });
+      this.refreshInputAvailability();
     } catch (error) {
       this.emit('update-status', { text: 'Could not start microphone', color: 'red' });
       this.mediaRecorder?.stop();
@@ -382,12 +387,13 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
     }
   }
 
-  cleanupRecording() {
+cleanupRecording() {
     const recorder = this.mediaRecorder;
     const stream = this.mediaStream;
     this.mediaRecorder = null;
     this.mediaStream = null;
     this.audioChunks = [];
+    this.isRecording = false;
     try { recorder?.stop(); } catch (error) { /* ignore */ }
     stream?.getTracks().forEach((track) => track.stop());
     this.setTranscribing(false);
@@ -398,7 +404,7 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
   // whatever SpeechRecognition put in the input with the more accurate
   // server-side transcript. Falls back silently to the browser's own
   // transcript (already in the input) if Whisper is unavailable or errors.
-  finishRecordingAndTranscribe() {
+finishRecordingAndTranscribe() {
     const recorder = this.mediaRecorder;
     const stream = this.mediaStream;
     this.mediaRecorder = null;
@@ -406,6 +412,7 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
 
     if (!recorder || recorder.state === 'inactive') {
       stream?.getTracks().forEach((track) => track.stop());
+      this.isRecording = false;
       this.emit('update-status', { text: 'Ready', color: 'green' });
       this.setTranscribing(false);
       return;
@@ -418,12 +425,18 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
       this.audioChunks = [];
 
       if (!blob.size) {
+        this.isRecording = false;
         this.emit('update-status', { text: 'Ready', color: 'green' });
         this.setTranscribing(false);
         return;
       }
 
+      // Recording has now genuinely ended and we're about to hand the
+      // audio to the backend — this is the correct moment for the
+      // "Transcribing…" placeholder to appear, not when recording started.
+      this.isRecording = false;
       this.emit('update-status', { text: 'Transcribing…', color: 'yellow' });
+      this.setTranscribing(true);
 
       try {
         const extension = (blob.type.split('/')[1] || 'webm').split(';')[0];
@@ -450,10 +463,11 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
       this.emit('update-status', { text: 'Ready', color: 'green' });
     };
 
-    try {
+try {
       recorder.stop();
     } catch (error) {
       stream?.getTracks().forEach((track) => track.stop());
+      this.isRecording = false;
       this.emit('update-status', { text: 'Ready', color: 'green' });
       this.setTranscribing(false);
     }
