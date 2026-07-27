@@ -31,17 +31,19 @@ Html
          built-in textarea/buttons. Each attribute is independent — supply
          one, two, or all three; omit any of them to keep the built-in
          default for that piece. See Custom Input Elements below. -->
+    <!--
     <div class="my-existing-chat-bar">
       <textarea id="my-chat-input"></textarea>
       <button id="my-mic-btn">🎤</button>
       <button id="my-send-btn">Send</button>
     </div>
-
     <avatar-inputs
       text-input="#my-chat-input"
       send-button="#my-send-btn"
       mic-button="#my-mic-btn"
-    ></avatar-inputs>
+    ></avatar-inputs> -->
+   <avatar-inputs></avatar-inputs>
+   
   </div>
 
   <script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
@@ -82,7 +84,7 @@ export default function AppShell() {
           built-in textarea/buttons. Each attribute is independent — supply
           one, two, or all three; omit any of them to keep the built-in
           default for that piece. See Custom Input Elements below. */}
-      <div className="my-existing-chat-bar">
+       {/*<div className="my-existing-chat-bar">
         <textarea id="my-chat-input" />
         <button id="my-mic-btn">🎤</button>
         <button id="my-send-btn">Send</button>
@@ -92,7 +94,8 @@ export default function AppShell() {
         text-input="#my-chat-input"
         send-button="#my-send-btn"
         mic-button="#my-mic-btn"
-      />
+      />*/}
+     <avatar-inputs/>
     </div>
   );
 }
