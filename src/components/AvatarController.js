@@ -4,6 +4,7 @@ import {
   DEFAULT_AVATAR_ID,
   DEFAULT_AVATAR_NAME,
   getAvatar as lookupAvatar,
+  getAllAvatars,
   setPersonaOverride,
   resetPersonaOverride,
   hasPersonaOverride,
@@ -148,8 +149,9 @@ window.addEventListener("avatar:edit-persona", async (event) => {
         }
       }
 
-      setPersonaOverride(targetId, fields, this.instanceId);
+  setPersonaOverride(targetId, fields, this.instanceId);
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
+      this.emitAvailableAvatars();
     });
 
     window.addEventListener("avatar:reset-persona", (event) => {
@@ -157,8 +159,8 @@ window.addEventListener("avatar:edit-persona", async (event) => {
       const targetId = event.detail?.avatarId || this.currentAvatarId;
       resetPersonaOverride(targetId, this.instanceId);
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
+      this.emitAvailableAvatars();
     });
-
     window.addEventListener("avatar:set-response-language", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const language = event.detail?.language;
@@ -738,9 +740,9 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     this.refreshHistory();
   }
 
-  emitAvailableAvatars() {
+emitAvailableAvatars() {
     this.emit("available-avatars", {
-      avatars: AVATAR_LIST,
+      avatars: getAllAvatars(this.instanceId),
       currentAvatarId: this.currentAvatarId,
       currentAvatarName: lookupAvatar(this.currentAvatarId, this.instanceId)?.name,
       responseLanguage: this.responseLanguage,

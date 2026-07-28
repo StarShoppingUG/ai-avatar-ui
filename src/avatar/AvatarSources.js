@@ -388,10 +388,22 @@ export function resetPersonaOverride(avatarId, instanceId = 'default') {
   delete overrides[overrideKey(instanceId, avatarId)];
   writePersonaOverrides(overrides);
 }
-
 export function applyAvatarOverrides(avatars, overridesByAvatarId = {}) {
   return avatars.map((avatar) => {
     const override = overridesByAvatarId[avatar.id];
+    return override ? { ...avatar, ...override } : avatar;
+  });
+}
+
+/** Returns the full AVATAR_SOURCES roster with each avatar's saved
+ * persona/name override (if any) merged in for the given instance — same
+ * per-avatar merge getAvatar() does, just applied across the whole list at
+ * once. Used to populate the "choose avatar" grid/picker so it reflects
+ * live edits instead of the static AVATAR_DATA defaults. */
+export function getAllAvatars(instanceId = 'default') {
+  const overrides = readPersonaOverrides();
+  return AVATAR_SOURCES.map((avatar) => {
+    const override = overrides[overrideKey(instanceId, avatar.id)];
     return override ? { ...avatar, ...override } : avatar;
   });
 }
