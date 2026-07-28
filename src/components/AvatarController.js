@@ -118,24 +118,34 @@ class AvatarController {
       this.emitCurrentProfile();
     });
 
-    window.addEventListener("avatar:edit-persona", async (event) => {
+window.addEventListener("avatar:edit-persona", async (event) => {
       if (event.detail?.instance !== this.instanceId) return;
-      const { avatarId, text, language } = event.detail || {};
+      const { avatarId, text, language, name } = event.detail || {};
       const targetId = avatarId || this.currentAvatarId;
-      if (text === undefined) return;
+      if (text === undefined && name === undefined) return;
 
-      const isJa = language === "ja";
-      const fields = isJa ? { personaJa: text } : { persona: text };
+      const fields = {};
 
-      try {
-        const targetLang = isJa ? "en" : "ja";
-        const result = await this.brain.translate(text, targetLang);
-        const translated = result?.text ?? "";
-        if (translated) {
-          fields[isJa ? "persona" : "personaJa"] = translated;
+      // Name isn't translated — it's a proper noun, shared across both
+      // languages, so it's just stored as-is.
+      if (name !== undefined) {
+        fields.name = name;
+      }
+
+      if (text !== undefined) {
+        const isJa = language === "ja";
+        fields[isJa ? "personaJa" : "persona"] = text;
+
+        try {
+          const targetLang = isJa ? "en" : "ja";
+          const result = await this.brain.translate(text, targetLang);
+          const translated = result?.text ?? "";
+          if (translated) {
+            fields[isJa ? "persona" : "personaJa"] = translated;
+          }
+        } catch (error) {
+          console.error("[avatar-persona] translate failed, saving single language only:", error);
         }
-      } catch (error) {
-        console.error("[avatar-persona] translate failed, saving single language only:", error);
       }
 
       setPersonaOverride(targetId, fields, this.instanceId);

@@ -1,11 +1,15 @@
-import { emitAvatarEvent } from './events.js';
-import { getStoredUiLanguage, getUiText } from './i18n.js';
-import { RESPONSE_LANGUAGES, DEFAULT_RESPONSE_LANGUAGE, UI_LANGUAGES } from './constants.js';
+import { emitAvatarEvent } from "./events.js";
+import { getStoredUiLanguage, getUiText } from "./i18n.js";
+import {
+  RESPONSE_LANGUAGES,
+  DEFAULT_RESPONSE_LANGUAGE,
+  UI_LANGUAGES,
+} from "./constants.js";
 
 class AvatarSettings extends HTMLElement {
   connectedCallback() {
-    this.classList.add('avatar-settings');
-    this.instanceId = this.getAttribute('instance') || 'default';
+    this.classList.add("avatar-settings");
+    this.instanceId = this.getAttribute("instance") || "default";
     this.innerHTML = `
       <div class="settings-toggle-wrapper">
         <button type="button" class="settings-toggle">⚙️ Settings</button>
@@ -20,13 +24,22 @@ class AvatarSettings extends HTMLElement {
             <button type="button" class="settings-close" aria-label="Close settings">✕</button>
           </div>
           <div class="settings-body">
-        <div class="profile-card">
-              <div class="profile-name"></div>
-              <textarea class="profile-bio" rows="4"></textarea>
+          <div class="profile-card">
               <div class="persona-edit-actions">
-                <button type="button" class="persona-save">Save</button>
-                <button type="button" class="persona-reset" disabled>Reset to default</button>
+                <button type="button" class="persona-save" title="Save" aria-label="Save">
+                  <svg xmlns="http://w3.org" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6 9 17l-5-5"></path>
+                  </svg>
+                </button>
+                <button type="button" class="persona-reset" disabled title="Reset to default" aria-label="Reset to default">
+                  <svg xmlns="http://w3.org" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+                    <path d="M3 4v5h5"></path>
+                  </svg>
+                </button>
               </div>
+              <input type="text" class="profile-name" />
+              <textarea class="profile-bio" rows="4"></textarea>
             </div>
    <div class="settings-group">
   <label>Avatar</label>
@@ -92,17 +105,17 @@ class AvatarSettings extends HTMLElement {
     `;
     this.avatars = [];
     this.currentAvatarId = null;
-    this.avatarSearchQuery = '';
+    this.avatarSearchQuery = "";
     this.cacheNodes();
     this.bindEvents();
     this.populateResponseLanguages();
     this.populateUiLanguages();
     this.applyUiLanguage(getStoredUiLanguage(this.instanceId));
-    window.addEventListener('avatar:available-avatars', (event) => {
+    window.addEventListener("avatar:available-avatars", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.populateAvatars(event.detail);
     });
-    window.addEventListener('avatar:update-profile', (event) => {
+    window.addEventListener("avatar:update-profile", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.updateProfile(event.detail);
     });
@@ -115,155 +128,179 @@ class AvatarSettings extends HTMLElement {
   }
 
   cacheNodes() {
-    this.settingsToggle = this.querySelector('.settings-toggle');
-    this.settingsOverlay = this.querySelector('.settings-overlay');
-    this.settingsClose = this.querySelector('.settings-close');
-    this.avatarSearchInput = this.querySelector('.avatar-search');
-    this.avatarGrid = this.querySelector('.avatar-grid');
-    this.avatarGridEmpty = this.querySelector('.avatar-grid-empty');
-    this.responseLanguageSelect = this.querySelector('.response-language-select');
-    this.uiLanguageSelect = this.querySelector('.ui-language-select');
-    this.profileName = this.querySelector('.profile-name');
-    this.profileBio = this.querySelector('.profile-bio');
-    this.personaSaveBtn = this.querySelector('.persona-save');
-    this.personaResetBtn = this.querySelector('.persona-reset');
-    this.historyOpenBtn = this.querySelector('.history-open');
-    this.chatHistoryOverlay = this.querySelector('.chat-history-overlay');
-    this.historyCloseBtn = this.querySelector('.history-close');
-    this.historyThread = this.querySelector('.chat-history-thread');
-    this.historyClearBtn = this.querySelector('.history-clear');
-    this.confirmOverlay = this.querySelector('.confirm-reset-overlay');
-    this.confirmCancelBtn = this.querySelector('.confirm-reset-cancel');
-    this.confirmConfirmBtn = this.querySelector('.confirm-reset-confirm');
-    this.avatarOpenBtn = this.querySelector('.avatar-open');
-    this.avatarOpenThumb = this.querySelector('.avatar-open-thumb');
-    this.avatarOpenName = this.querySelector('.avatar-open-name');
-    this.avatarPickerOverlay = this.querySelector('.avatar-picker-overlay');
-    this.avatarPickerClose = this.querySelector('.avatar-picker-close');
+    this.settingsToggle = this.querySelector(".settings-toggle");
+    this.settingsOverlay = this.querySelector(".settings-overlay");
+    this.settingsClose = this.querySelector(".settings-close");
+    this.avatarSearchInput = this.querySelector(".avatar-search");
+    this.avatarGrid = this.querySelector(".avatar-grid");
+    this.avatarGridEmpty = this.querySelector(".avatar-grid-empty");
+    this.responseLanguageSelect = this.querySelector(
+      ".response-language-select",
+    );
+    this.uiLanguageSelect = this.querySelector(".ui-language-select");
+    this.profileName = this.querySelector(".profile-name");
+    this.profileBio = this.querySelector(".profile-bio");
+    this.personaSaveBtn = this.querySelector(".persona-save");
+    this.personaResetBtn = this.querySelector(".persona-reset");
+    this.historyOpenBtn = this.querySelector(".history-open");
+    this.chatHistoryOverlay = this.querySelector(".chat-history-overlay");
+    this.historyCloseBtn = this.querySelector(".history-close");
+    this.historyThread = this.querySelector(".chat-history-thread");
+    this.historyClearBtn = this.querySelector(".history-clear");
+    this.confirmOverlay = this.querySelector(".confirm-reset-overlay");
+    this.confirmCancelBtn = this.querySelector(".confirm-reset-cancel");
+    this.confirmConfirmBtn = this.querySelector(".confirm-reset-confirm");
+    this.avatarOpenBtn = this.querySelector(".avatar-open");
+    this.avatarOpenThumb = this.querySelector(".avatar-open-thumb");
+    this.avatarOpenName = this.querySelector(".avatar-open-name");
+    this.avatarPickerOverlay = this.querySelector(".avatar-picker-overlay");
+    this.avatarPickerClose = this.querySelector(".avatar-picker-close");
   }
 
   bindEvents() {
-    this.settingsToggle?.addEventListener('click', () => this.openSettings());
-    this.settingsClose?.addEventListener('click', () => this.closeSettings());
-    this.settingsOverlay?.addEventListener('click', (event) => {
+    this.settingsToggle?.addEventListener("click", () => this.openSettings());
+    this.settingsClose?.addEventListener("click", () => this.closeSettings());
+    this.settingsOverlay?.addEventListener("click", (event) => {
       if (event.target === this.settingsOverlay) {
         this.closeSettings();
       }
     });
 
-    this.avatarSearchInput?.addEventListener('input', (event) => {
-      this.avatarSearchQuery = event.target.value || '';
+    this.avatarSearchInput?.addEventListener("input", (event) => {
+      this.avatarSearchQuery = event.target.value || "";
       this.renderAvatarGrid();
     });
 
     // Event delegation: one listener handles clicks on any current or future
     // card, so we don't need to rebind per-card listeners on every re-render.
-    this.avatarGrid?.addEventListener('click', (event) => {
-      const card = event.target.closest('.avatar-card');
+    this.avatarGrid?.addEventListener("click", (event) => {
+      const card = event.target.closest(".avatar-card");
       if (!card) return;
       const avatarId = card.dataset.avatarId;
       if (!avatarId || avatarId === this.currentAvatarId) return;
       this.currentAvatarId = avatarId;
       this.renderAvatarGrid();
       this.updateAvatarOpenButton();
-      this.emit('select-avatar', { avatarId });
+      this.emit("select-avatar", { avatarId });
       this.closeAvatarPicker();
     });
 
     // Basic keyboard support so the grid isn't mouse-only.
-    this.avatarGrid?.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      const card = event.target.closest('.avatar-card');
+    this.avatarGrid?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const card = event.target.closest(".avatar-card");
       if (!card) return;
       event.preventDefault();
       card.click();
     });
 
-    this.responseLanguageSelect?.addEventListener('change', (event) => {
-      this.emit('set-response-language', { language: event.target.value });
+    this.responseLanguageSelect?.addEventListener("change", (event) => {
+      this.emit("set-response-language", { language: event.target.value });
     });
-    this.uiLanguageSelect?.addEventListener('change', (event) => {
-      this.emit('set-ui-language', { language: event.target.value });
+    this.uiLanguageSelect?.addEventListener("change", (event) => {
+      this.emit("set-ui-language", { language: event.target.value });
     });
-    this.historyOpenBtn?.addEventListener('click', () => {
-      this.emit('open-chat-history');
+    this.historyOpenBtn?.addEventListener("click", () => {
+      this.emit("open-chat-history");
       this.openChatHistory();
     });
-    this.historyClearBtn?.addEventListener('click', () => this.openConfirmReset());
-    this.historyCloseBtn?.addEventListener('click', () => this.closeChatHistory());
-    this.confirmCancelBtn?.addEventListener('click', () => this.closeConfirmReset());
-    this.confirmConfirmBtn?.addEventListener('click', () => this.confirmClearHistory());
-    this.confirmOverlay?.addEventListener('click', (event) => {
+    this.historyClearBtn?.addEventListener("click", () =>
+      this.openConfirmReset(),
+    );
+    this.historyCloseBtn?.addEventListener("click", () =>
+      this.closeChatHistory(),
+    );
+    this.confirmCancelBtn?.addEventListener("click", () =>
+      this.closeConfirmReset(),
+    );
+    this.confirmConfirmBtn?.addEventListener("click", () =>
+      this.confirmClearHistory(),
+    );
+    this.confirmOverlay?.addEventListener("click", (event) => {
       if (event.target === this.confirmOverlay) {
         this.closeConfirmReset();
       }
     });
-    this.chatHistoryOverlay?.addEventListener('click', (event) => {
+    this.chatHistoryOverlay?.addEventListener("click", (event) => {
       if (event.target === this.chatHistoryOverlay) {
         this.closeChatHistory();
       }
     });
-    this.avatarOpenBtn?.addEventListener('click', () => this.openAvatarPicker());
-    this.avatarPickerClose?.addEventListener('click', () => this.closeAvatarPicker());
-    this.avatarPickerOverlay?.addEventListener('click', (event) => {
+    this.avatarOpenBtn?.addEventListener("click", () =>
+      this.openAvatarPicker(),
+    );
+    this.avatarPickerClose?.addEventListener("click", () =>
+      this.closeAvatarPicker(),
+    );
+    this.avatarPickerOverlay?.addEventListener("click", (event) => {
       if (event.target === this.avatarPickerOverlay) {
         this.closeAvatarPicker();
       }
     });
 
-  this.personaSaveBtn?.addEventListener('click', () => {
+this.personaSaveBtn?.addEventListener('click', () => {
       const value = this.profileBio?.value ?? '';
       const language = getStoredUiLanguage(this.instanceId);
-      this.emit('edit-persona', { avatarId: this.currentAvatarId, text: value, language });
+      const nameValue = this.profileName?.value?.trim();
+      const payload = { avatarId: this.currentAvatarId, text: value, language };
+      // Only include name if it's actually non-empty — an accidentally
+      // cleared field shouldn't silently overwrite a real name with ''.
+      if (nameValue) payload.name = nameValue;
+      this.emit('edit-persona', payload);
     });
     this.personaResetBtn?.addEventListener('click', () => {
       this.emit('reset-persona', { avatarId: this.currentAvatarId });
     });
 
-    window.addEventListener('avatar:open-chat-history', (event) => {
+    window.addEventListener("avatar:open-chat-history", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.openChatHistory();
     });
-    window.addEventListener('avatar:chat-history', (event) => {
+    window.addEventListener("avatar:chat-history", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
-      this.renderHistory(event.detail?.history || [], event.detail?.responseLanguage, event.detail?.avatarName);
+      this.renderHistory(
+        event.detail?.history || [],
+        event.detail?.responseLanguage,
+        event.detail?.avatarName,
+      );
     });
   }
 
   openSettings() {
-    this.settingsOverlay?.classList.add('open');
-    this.settingsOverlay?.setAttribute('aria-hidden', 'false');
+    this.settingsOverlay?.classList.add("open");
+    this.settingsOverlay?.setAttribute("aria-hidden", "false");
   }
 
   closeSettings() {
-    this.settingsOverlay?.classList.remove('open');
-    this.settingsOverlay?.setAttribute('aria-hidden', 'true');
+    this.settingsOverlay?.classList.remove("open");
+    this.settingsOverlay?.setAttribute("aria-hidden", "true");
   }
 
   openChatHistory() {
-    this.chatHistoryOverlay?.classList.add('open');
-    this.chatHistoryOverlay?.setAttribute('aria-hidden', 'false');
+    this.chatHistoryOverlay?.classList.add("open");
+    this.chatHistoryOverlay?.setAttribute("aria-hidden", "false");
   }
 
   closeChatHistory() {
-    this.chatHistoryOverlay?.classList.remove('open');
-    this.chatHistoryOverlay?.setAttribute('aria-hidden', 'true');
+    this.chatHistoryOverlay?.classList.remove("open");
+    this.chatHistoryOverlay?.setAttribute("aria-hidden", "true");
   }
 
   openAvatarPicker() {
-    this.avatarPickerOverlay?.classList.add('open');
-    this.avatarPickerOverlay?.setAttribute('aria-hidden', 'false');
+    this.avatarPickerOverlay?.classList.add("open");
+    this.avatarPickerOverlay?.setAttribute("aria-hidden", "false");
     this.avatarSearchInput?.focus();
   }
 
   closeAvatarPicker() {
-    this.avatarPickerOverlay?.classList.remove('open');
-    this.avatarPickerOverlay?.setAttribute('aria-hidden', 'true');
+    this.avatarPickerOverlay?.classList.remove("open");
+    this.avatarPickerOverlay?.setAttribute("aria-hidden", "true");
   }
 
   populateAvatars(detail = {}) {
     const avatars = Array.isArray(detail.avatars) ? detail.avatars : [];
-    const currentAvatarName = detail.currentAvatarName || detail.currentAvatarId;
+    const currentAvatarName =
+      detail.currentAvatarName || detail.currentAvatarId;
     const currentAvatarId = detail.currentAvatarId;
 
     this.avatars = avatars;
@@ -271,7 +308,7 @@ class AvatarSettings extends HTMLElement {
     this.renderAvatarGrid();
     this.updateAvatarOpenButton();
     if (currentAvatarName) {
-      this.emit('request-current-profile');
+      this.emit("request-current-profile");
     }
 
     this.populateResponseLanguages(detail.responseLanguage);
@@ -286,22 +323,25 @@ class AvatarSettings extends HTMLElement {
 
     const query = this.avatarSearchQuery.trim().toLowerCase();
     const filtered = query
-      ? this.avatars.filter((avatar) => (avatar.name || '').toLowerCase().includes(query))
+      ? this.avatars.filter((avatar) =>
+          (avatar.name || "").toLowerCase().includes(query),
+        )
       : this.avatars;
 
     if (this.avatarGridEmpty) {
       this.avatarGridEmpty.hidden = filtered.length > 0;
     }
 
-    this.avatarGrid.innerHTML = filtered.map((avatar) => {
-      const isSelected = avatar.id === this.currentAvatarId;
-      const initials = (avatar.name || '?').trim().slice(0, 2).toUpperCase();
-      const thumb = avatar.thumbnail
-        ? `<img src="${avatar.thumbnail}" alt="" loading="lazy" class="avatar-card-thumb" />`
-        : `<div class="avatar-card-fallback">${initials}</div>`;
-      return `
+    this.avatarGrid.innerHTML = filtered
+      .map((avatar) => {
+        const isSelected = avatar.id === this.currentAvatarId;
+        const initials = (avatar.name || "?").trim().slice(0, 2).toUpperCase();
+        const thumb = avatar.thumbnail
+          ? `<img src="${avatar.thumbnail}" alt="" loading="lazy" class="avatar-card-thumb" />`
+          : `<div class="avatar-card-fallback">${initials}</div>`;
+        return `
         <div
-          class="avatar-card${isSelected ? ' avatar-card--selected' : ''}"
+          class="avatar-card${isSelected ? " avatar-card--selected" : ""}"
           data-avatar-id="${avatar.id}"
           role="option"
           aria-selected="${isSelected}"
@@ -311,17 +351,18 @@ class AvatarSettings extends HTMLElement {
           <span class="avatar-card-name">${avatar.name || avatar.id}</span>
         </div>
       `;
-    }).join('');
+      })
+      .join("");
   }
 
   updateAvatarOpenButton() {
     if (!this.avatarOpenName) return;
     const avatar = this.avatars.find((a) => a.id === this.currentAvatarId);
-    this.avatarOpenName.textContent = avatar?.name || 'Choose avatar';
+    this.avatarOpenName.textContent = avatar?.name || "Choose avatar";
     if (this.avatarOpenThumb) {
       this.avatarOpenThumb.textContent = avatar
-        ? (avatar.name || '?').trim().slice(0, 2).toUpperCase()
-        : '';
+        ? (avatar.name || "?").trim().slice(0, 2).toUpperCase()
+        : "";
     }
   }
 
@@ -335,10 +376,13 @@ class AvatarSettings extends HTMLElement {
   populateResponseLanguages(preferredLanguage = null) {
     if (!this.responseLanguageSelect) return;
     const requested = preferredLanguage || this.responseLanguageSelect.value;
-    this.responseLanguageSelect.innerHTML = RESPONSE_LANGUAGES
-      .map((lang) => `<option value="${lang}">${lang === 'en' ? 'English' : lang === 'ja' ? 'Japanese' : 'Japanese + English'}</option>`)
-      .join('');
-    const selectedValue = RESPONSE_LANGUAGES.includes(requested) ? requested : DEFAULT_RESPONSE_LANGUAGE;
+    this.responseLanguageSelect.innerHTML = RESPONSE_LANGUAGES.map(
+      (lang) =>
+        `<option value="${lang}">${lang === "en" ? "English" : lang === "ja" ? "Japanese" : "Japanese + English"}</option>`,
+    ).join("");
+    const selectedValue = RESPONSE_LANGUAGES.includes(requested)
+      ? requested
+      : DEFAULT_RESPONSE_LANGUAGE;
     this.responseLanguageSelect.value = selectedValue;
     // Note: intentionally no emit here. This method only syncs the
     // <select>'s displayed value (on initial connect and when the backend
@@ -349,68 +393,72 @@ class AvatarSettings extends HTMLElement {
     // user-initiated selection actually happened.
   }
 
-populateUiLanguages() {
+  populateUiLanguages() {
     if (!this.uiLanguageSelect) return;
-    this.uiLanguageSelect.innerHTML = UI_LANGUAGES
-      .map((lang) => `<option value="${lang}">${lang === 'en' ? 'English' : '日本語'}</option>`)
-      .join('');
+    this.uiLanguageSelect.innerHTML = UI_LANGUAGES.map(
+      (lang) =>
+        `<option value="${lang}">${lang === "en" ? "English" : "日本語"}</option>`,
+    ).join("");
     this.uiLanguageSelect.value = getStoredUiLanguage(this.instanceId);
   }
 
-  applyUiLanguage(language = 'en') {
-    const lang = UI_LANGUAGES.includes(language) ? language : 'en';
+  applyUiLanguage(language = "en") {
+    const lang = UI_LANGUAGES.includes(language) ? language : "en";
     const text = getUiText(lang);
 
-    const labels = this.querySelectorAll('.settings-group > label');
+    const labels = this.querySelectorAll(".settings-group > label");
     if (labels[0]) labels[0].textContent = text.avatarLabel;
     if (labels[1]) labels[1].textContent = text.replyLabel;
     if (labels[2]) labels[2].textContent = text.interfaceLabel;
 
-    if (this.avatarSearchInput) this.avatarSearchInput.placeholder = text.avatarSearchPlaceholder || this.avatarSearchInput.placeholder;
+    if (this.avatarSearchInput)
+      this.avatarSearchInput.placeholder =
+        text.avatarSearchPlaceholder || this.avatarSearchInput.placeholder;
 
-    const historyOpen = this.querySelector('.history-open');
+    const historyOpen = this.querySelector(".history-open");
     if (historyOpen) historyOpen.textContent = text.historyButton;
 
-    const historyTitle = this.querySelector('.history-title');
+    const historyTitle = this.querySelector(".history-title");
     if (historyTitle) historyTitle.textContent = text.historyTitle;
 
-    const historySubtitle = this.querySelector('.history-subtitle');
+    const historySubtitle = this.querySelector(".history-subtitle");
     if (historySubtitle) historySubtitle.textContent = text.historySubtitle;
 
-    const historyClear = this.querySelector('.history-clear');
+    const historyClear = this.querySelector(".history-clear");
     if (historyClear) historyClear.textContent = text.clearHistory;
 
-    const historyClose = this.querySelector('.history-close');
-    if (historyClose) historyClose.setAttribute('aria-label', text.close);
+    const historyClose = this.querySelector(".history-close");
+    if (historyClose) historyClose.setAttribute("aria-label", text.close);
 
-    const settingsToggle = this.querySelector('.settings-toggle');
+    const settingsToggle = this.querySelector(".settings-toggle");
     if (settingsToggle) {
       settingsToggle.textContent = `⚙️ ${text.settingsLabel}`;
-      settingsToggle.setAttribute('aria-label', text.openSettings);
+      settingsToggle.setAttribute("aria-label", text.openSettings);
     }
 
-    const settingsClose = this.querySelector('.settings-close');
-    if (settingsClose) settingsClose.setAttribute('aria-label', text.closeSettings);
+    const settingsClose = this.querySelector(".settings-close");
+    if (settingsClose)
+      settingsClose.setAttribute("aria-label", text.closeSettings);
 
-    const title = this.querySelector('.settings-title');
+    const title = this.querySelector(".settings-title");
     if (title) title.textContent = text.settingsTitle;
 
-    const subtitle = this.querySelector('.settings-subtitle');
+    const subtitle = this.querySelector(".settings-subtitle");
     if (subtitle) subtitle.textContent = text.settingsSubtitle;
 
-    const input = this.querySelector('.chat-input');
+    const input = this.querySelector(".chat-input");
     if (input) input.placeholder = text.placeholder;
 
-    const sendBtn = this.querySelector('.send-btn');
+    const sendBtn = this.querySelector(".send-btn");
     if (sendBtn) {
       sendBtn.textContent = text.send;
-      sendBtn.setAttribute('title', text.send);
+      sendBtn.setAttribute("title", text.send);
     }
 
-    const micBtn = this.querySelector('.mic-btn');
-    if (micBtn) micBtn.setAttribute('title', text.micTitle);
+    const micBtn = this.querySelector(".mic-btn");
+    if (micBtn) micBtn.setAttribute("title", text.micTitle);
 
-    if (this.historyThread?.querySelector('.chat-placeholder')) {
+    if (this.historyThread?.querySelector(".chat-placeholder")) {
       this.historyThread.innerHTML = `<div class="chat-placeholder">${text.conversationCleared}</div>`;
     }
 
@@ -425,7 +473,11 @@ populateUiLanguages() {
 updateProfile(detail = {}) {
     if (!this.profileName || !this.profileBio) return;
     this.currentProfileDetail = { ...(this.currentProfileDetail || {}), ...detail };
-    this.profileName.textContent = detail.name || this.profileName.textContent;
+
+    if (document.activeElement !== this.profileName) {
+      this.profileName.value = this.currentProfileDetail.name || '';
+    }
+
     const language = getStoredUiLanguage(this.instanceId);
     const personaText = language === 'ja'
       ? (this.currentProfileDetail.personaJa || detail.personaJa || detail.persona)
@@ -444,62 +496,85 @@ updateProfile(detail = {}) {
    * whatever was shown before. Nothing here is accumulated locally — this is
    * the only way rows get into the panel.
    */
-  renderHistory(list = [], responseLanguage = 'en', avatarName = '') {
+  renderHistory(list = [], responseLanguage = "en", avatarName = "") {
     if (!this.historyThread) return;
-    this.historyThread.innerHTML = '';
-if (!list.length) {
+    this.historyThread.innerHTML = "";
+    if (!list.length) {
       const text = getUiText(getStoredUiLanguage(this.instanceId));
       this.historyThread.innerHTML = `<div class="chat-placeholder">${text.conversationCleared}</div>`;
       return;
     }
 
-    const showEn = responseLanguage === 'en' || responseLanguage === 'both';
-    const showJa = responseLanguage === 'ja' || responseLanguage === 'both';
+    const showEn = responseLanguage === "en" || responseLanguage === "both";
+    const showJa = responseLanguage === "ja" || responseLanguage === "both";
 
     list.forEach((entry) => {
       try {
         const time = entry.time
-          ? new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : '';
-        const speakerName = entry.character_name || avatarName || '';
-        if (entry.role === 'assistant') {
+          ? new Date(entry.time).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
+        const speakerName = entry.character_name || avatarName || "";
+        if (entry.role === "assistant") {
           const preferEn = showEn && entry.text_en;
           const preferJa = showJa && entry.text_ja;
-          if (preferEn) this.appendHistoryItem('avatar', entry.text_en, time, speakerName);
-          if (preferJa) this.appendHistoryItem('avatar', entry.text_ja, time, speakerName);
+          if (preferEn)
+            this.appendHistoryItem("avatar", entry.text_en, time, speakerName);
+          if (preferJa)
+            this.appendHistoryItem("avatar", entry.text_ja, time, speakerName);
           if (!preferEn && !preferJa) {
-            const fallback = entry.text_en || entry.text_ja || entry.text || entry.content || '';
-            if (fallback) this.appendHistoryItem('avatar', fallback, time, speakerName);
+            const fallback =
+              entry.text_en ||
+              entry.text_ja ||
+              entry.text ||
+              entry.content ||
+              "";
+            if (fallback)
+              this.appendHistoryItem("avatar", fallback, time, speakerName);
           }
         } else {
-          this.appendHistoryItem(entry.role || 'user', entry.text || entry.content || '', time);
+          this.appendHistoryItem(
+            entry.role || "user",
+            entry.text || entry.content || "",
+            time,
+          );
         }
       } catch (err) {
-        console.error('Failed to render a chat history entry:', entry, err);
+        console.error("Failed to render a chat history entry:", entry, err);
       }
     });
 
-    this.historyThread.scrollTo({ top: this.historyThread.scrollHeight, behavior: 'auto' });
+    this.historyThread.scrollTo({
+      top: this.historyThread.scrollHeight,
+      behavior: "auto",
+    });
   }
 
-  appendHistoryItem(role, text, time = '', speakerName = '') {
-    const clean = String(text || '').trim();
+  appendHistoryItem(role, text, time = "", speakerName = "") {
+    const clean = String(text || "").trim();
     if (!this.historyThread || !clean) return;
 
-    const sender = String(role || '').trim().toLowerCase();
-    const label = sender === 'user'
-      ? 'You'
-      : (sender === 'avatar' || sender === 'assistant')
-        ? (speakerName || 'Avatar')
-        : sender ? sender.charAt(0).toUpperCase() + sender.slice(1) : 'Message';
+    const sender = String(role || "")
+      .trim()
+      .toLowerCase();
+    const label =
+      sender === "user"
+        ? "You"
+        : sender === "avatar" || sender === "assistant"
+          ? speakerName || "Avatar"
+          : sender
+            ? sender.charAt(0).toUpperCase() + sender.slice(1)
+            : "Message";
 
-    const item = document.createElement('div');
-    const isUser = sender === 'user';
-    item.className = `chat-history-item ${isUser ? 'chat-history-item--user' : 'chat-history-item--avatar'}`;
+    const item = document.createElement("div");
+    const isUser = sender === "user";
+    item.className = `chat-history-item ${isUser ? "chat-history-item--user" : "chat-history-item--avatar"}`;
     item.innerHTML = `
       <div class="chat-history-meta">
         <span class="chat-history-sender">${label}</span>
-        ${time ? `<span class="chat-history-time">${time}</span>` : ''}
+        ${time ? `<span class="chat-history-time">${time}</span>` : ""}
       </div>
       <div class="chat-history-bubble">${clean}</div>
     `;
@@ -508,17 +583,17 @@ if (!list.length) {
   }
 
   openConfirmReset() {
-    this.confirmOverlay?.classList.add('open');
-    this.confirmOverlay?.setAttribute('aria-hidden', 'false');
+    this.confirmOverlay?.classList.add("open");
+    this.confirmOverlay?.setAttribute("aria-hidden", "false");
   }
 
   closeConfirmReset() {
-    this.confirmOverlay?.classList.remove('open');
-    this.confirmOverlay?.setAttribute('aria-hidden', 'true');
+    this.confirmOverlay?.classList.remove("open");
+    this.confirmOverlay?.setAttribute("aria-hidden", "true");
   }
 
   confirmClearHistory() {
-    this.emit('clear-chat-history');
+    this.emit("clear-chat-history");
     this.closeConfirmReset();
     this.closeChatHistory();
   }
