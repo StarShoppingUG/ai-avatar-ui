@@ -27,7 +27,10 @@ class AvatarController {
     this.instanceId = model.instanceId || 'default';
     this.currentAvatarId = DEFAULT_AVATAR_ID; 
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
-    this.brain = new CharacterBrain(model.backend || BACKEND, this.instanceId);
+    this.brain = new CharacterBrain(model.backend || BACKEND, this.instanceId, {
+  appId: model.getAttribute('app-id') || undefined,
+  userId: model.getAttribute('user-id') || undefined,
+});
     this.voiceCatalog = { en: [], ja: [] };
     this.lastAudio = null;
     this.audioQueue = [];
@@ -42,6 +45,7 @@ class AvatarController {
     emitAvatarEvent(name, detail, this.instanceId);
   }
 
+// NEW:
   async init() {
     this.emit("app:loading");
     this.emitStatus("Loading avatar…", "yellow");
@@ -52,15 +56,76 @@ class AvatarController {
     this.syncInitialResponseLanguage();
     await this.loadPersistedSettings();
     this.emitAvailableAvatars();
+    // Safe to emit early — emitCurrentProfile() only reads AvatarSources
+    // data for this.currentAvatarId, it doesn't depend on model.loadAvatar()
+    // having run. Lets <avatar-setup> (and <avatar-settings>) prefill the
+    // persona name/bio before the gate below even resolves.
+    this.emitCurrentProfile();
 
     await this.loadVoiceCatalog();
 
-    await this.selectAvatar(this.currentAvatarId);
+    const setupWasShown = await this.waitForSetupIfNeeded();
+
+    // If setup ran, its own 'Continue' already fired avatar:select-avatar,
+    // which the listener in registerListeners() already routed through
+    // selectAvatar() — calling it again here would reload the same GLB
+    // a second time for nothing. Only call it directly on the normal
+    // (no-setup-shown) path, exactly as before.
+    if (!setupWasShown) {
+      await this.selectAvatar(this.currentAvatarId);
+    }
 
     this.refreshHistory();
 
     this.emitStatus("Ready", "green");
     this.emit("app:ready");
+  }
+
+  /** Finds the <avatar-setup> element for this instance, if any, matching
+   * the same instance-attribute convention every other avatar-* element
+   * uses (attribute value, defaulting to "default"). */
+  findSetupElement() {
+    const candidates = document.querySelectorAll("avatar-setup");
+    for (const el of candidates) {
+      const id = el.getAttribute("instance") || "default";
+      if (id === this.instanceId) return el;
+    }
+    return null;
+  }
+
+  /**
+   * Gates the initial selectAvatar() call behind a blocking <avatar-setup>
+   * step, if one is present for this instance and applicable:
+   *   - mode="always" (opt-in attribute): show every load.
+   *   - default / mode="first-visit": show only when loadPersistedSettings()
+   *     found no saved last_avatar for this user.
+   * No <avatar-setup> element for this instance, or not applicable this
+   * load -> resolves immediately, zero behavior change from before.
+   * Resolves to true iff the step was actually shown (so init() knows
+   * whether selectAvatar() still needs to be called itself, or already
+   * happened via the setup step's own select-avatar emit).
+   */
+  async waitForSetupIfNeeded() {
+    const setupEl = this.findSetupElement();
+    if (!setupEl) return false;
+
+    const mode = setupEl.getAttribute("mode") || "first-visit";
+    const shouldShow = mode === "always" || this._isFirstVisit;
+    if (!shouldShow) return false;
+
+    await customElements.whenDefined("avatar-setup");
+
+    await new Promise((resolve) => {
+      const onComplete = (event) => {
+        if (event.detail?.instance !== this.instanceId) return;
+        window.removeEventListener("avatar:setup-complete", onComplete);
+        resolve();
+      };
+      window.addEventListener("avatar:setup-complete", onComplete);
+      setupEl.show();
+    });
+
+    return true;
   }
 
   // Pulls this user's saved settings (last avatar, reply language, UI
@@ -69,9 +134,15 @@ class AvatarController {
   // priority over that DOM-default fallback. Backend unreachable/offline
   // just means falling back to the existing in-code defaults for this run;
   // it's not fatal.
+// NEW:
   async loadPersistedSettings() {
+    // Default to "not first visit" so that if the backend is unreachable,
+    // we fail toward skipping the setup gate rather than blocking every
+    // visitor on it — matches the existing non-fatal handling of this call.
+    this._isFirstVisit = false;
     try {
       const settings = await this.brain.getSettings();
+      this._isFirstVisit = !settings.last_avatar;
       if (settings.last_avatar) {
         this.currentAvatarId = settings.last_avatar;
       }

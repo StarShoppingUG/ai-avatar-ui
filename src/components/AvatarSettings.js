@@ -5,7 +5,7 @@ import {
   DEFAULT_RESPONSE_LANGUAGE,
   UI_LANGUAGES,
 } from "./constants.js";
-
+import { AvatarPickerCore } from "./AvatarPickerCore.js";
 class AvatarSettings extends HTMLElement {
   connectedCallback() {
     this.classList.add("avatar-settings");
@@ -103,13 +103,32 @@ class AvatarSettings extends HTMLElement {
         </div>
       </div>
     `;
-    this.avatars = [];
-    this.currentAvatarId = null;
-    this.avatarSearchQuery = "";
+// NEW:
     this.cacheNodes();
+    this.core = new AvatarPickerCore(
+      {
+        avatarSearchInput: this.avatarSearchInput,
+        avatarGrid: this.avatarGrid,
+        avatarGridEmpty: this.avatarGridEmpty,
+        responseLanguageSelect: this.responseLanguageSelect,
+        uiLanguageSelect: this.uiLanguageSelect,
+        profileName: this.profileName,
+        profileBio: this.profileBio,
+        personaSaveBtn: this.personaSaveBtn,
+        personaResetBtn: this.personaResetBtn,
+      },
+      (name, detail) => this.emit(name, detail),
+      this.instanceId,
+      // emitOnSelect defaults to true — live-switch on click, same as before.
+    );
+    this.core.onAvatarSelected = () => {
+      this.updateAvatarOpenButton();
+      this.closeAvatarPicker();
+    };
+    this.core.bindEvents();
     this.bindEvents();
-    this.populateResponseLanguages();
-    this.populateUiLanguages();
+    this.core.populateResponseLanguages();
+    this.core.populateUiLanguages();
     this.applyUiLanguage(getStoredUiLanguage(this.instanceId));
     window.addEventListener("avatar:available-avatars", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
@@ -117,7 +136,7 @@ class AvatarSettings extends HTMLElement {
     });
     window.addEventListener("avatar:update-profile", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
-      this.updateProfile(event.detail);
+      this.core.updateProfile(event.detail);
     });
   }
 
@@ -166,40 +185,6 @@ class AvatarSettings extends HTMLElement {
       }
     });
 
-    this.avatarSearchInput?.addEventListener("input", (event) => {
-      this.avatarSearchQuery = event.target.value || "";
-      this.renderAvatarGrid();
-    });
-
-    // Event delegation: one listener handles clicks on any current or future
-    // card, so we don't need to rebind per-card listeners on every re-render.
-    this.avatarGrid?.addEventListener("click", (event) => {
-      const card = event.target.closest(".avatar-card");
-      if (!card) return;
-      const avatarId = card.dataset.avatarId;
-      if (!avatarId || avatarId === this.currentAvatarId) return;
-      this.currentAvatarId = avatarId;
-      this.renderAvatarGrid();
-      this.updateAvatarOpenButton();
-      this.emit("select-avatar", { avatarId });
-      this.closeAvatarPicker();
-    });
-
-    // Basic keyboard support so the grid isn't mouse-only.
-    this.avatarGrid?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      const card = event.target.closest(".avatar-card");
-      if (!card) return;
-      event.preventDefault();
-      card.click();
-    });
-
-    this.responseLanguageSelect?.addEventListener("change", (event) => {
-      this.emit("set-response-language", { language: event.target.value });
-    });
-    this.uiLanguageSelect?.addEventListener("change", (event) => {
-      this.emit("set-ui-language", { language: event.target.value });
-    });
     this.historyOpenBtn?.addEventListener("click", () => {
       this.emit("open-chat-history");
       this.openChatHistory();
@@ -236,20 +221,6 @@ class AvatarSettings extends HTMLElement {
       if (event.target === this.avatarPickerOverlay) {
         this.closeAvatarPicker();
       }
-    });
-
-this.personaSaveBtn?.addEventListener('click', () => {
-      const value = this.profileBio?.value ?? '';
-      const language = getStoredUiLanguage(this.instanceId);
-      const nameValue = this.profileName?.value?.trim();
-      const payload = { avatarId: this.currentAvatarId, text: value, language };
-      // Only include name if it's actually non-empty — an accidentally
-      // cleared field shouldn't silently overwrite a real name with ''.
-      if (nameValue) payload.name = nameValue;
-      this.emit('edit-persona', payload);
-    });
-    this.personaResetBtn?.addEventListener('click', () => {
-      this.emit('reset-persona', { avatarId: this.currentAvatarId });
     });
 
     window.addEventListener("avatar:open-chat-history", (event) => {
@@ -297,22 +268,14 @@ this.personaSaveBtn?.addEventListener('click', () => {
     this.avatarPickerOverlay?.setAttribute("aria-hidden", "true");
   }
 
+// NEW:
   populateAvatars(detail = {}) {
-    const avatars = Array.isArray(detail.avatars) ? detail.avatars : [];
-    const currentAvatarName =
-      detail.currentAvatarName || detail.currentAvatarId;
-    const currentAvatarId = detail.currentAvatarId;
-
-    this.avatars = avatars;
-    this.currentAvatarId = currentAvatarId ?? this.currentAvatarId;
-    this.renderAvatarGrid();
+    this.core.populateAvatars(detail);
     this.updateAvatarOpenButton();
+    const currentAvatarName = detail.currentAvatarName || detail.currentAvatarId;
     if (currentAvatarName) {
       this.emit("request-current-profile");
     }
-
-    this.populateResponseLanguages(detail.responseLanguage);
-    this.populateUiLanguages();
   }
 
   // Renders the searchable grid from this.avatars / this.avatarSearchQuery /
@@ -355,9 +318,10 @@ this.personaSaveBtn?.addEventListener('click', () => {
       .join("");
   }
 
+// NEW:
   updateAvatarOpenButton() {
     if (!this.avatarOpenName) return;
-    const avatar = this.avatars.find((a) => a.id === this.currentAvatarId);
+    const avatar = this.core.avatars.find((a) => a.id === this.core.currentAvatarId);
     this.avatarOpenName.textContent = avatar?.name || "Choose avatar";
     if (this.avatarOpenThumb) {
       this.avatarOpenThumb.textContent = avatar
@@ -465,8 +429,9 @@ this.personaSaveBtn?.addEventListener('click', () => {
     if (this.uiLanguageSelect) {
       this.uiLanguageSelect.value = lang;
     }
-    if (this.currentProfileDetail) {
-      this.updateProfile(this.currentProfileDetail);
+// NEW:
+    if (this.core.currentProfileDetail) {
+      this.core.updateProfile(this.core.currentProfileDetail);
     }
   }
 

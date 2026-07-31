@@ -58,7 +58,7 @@ class AvatarModel extends HTMLElement {
     return Number.isNaN(value) ? undefined : value;
   }
 
-  static get observedAttributes() {
+static get observedAttributes() {
     // avatar-width / avatar-height are OPTIONAL. By default the element
     // fills its container (see the injected CSS above) — that's the
     // recommended way to size it. Only set these attributes if you
@@ -71,10 +71,15 @@ class AvatarModel extends HTMLElement {
     // (1 = default size). avatar-vertical-offset shifts the model up/down
     // in the scene (more negative = lower). Both are optional and take
     // effect immediately on the currently loaded avatar.
-    return ['avatar-width', 'avatar-height', 'backend', 'avatar-scale', 'avatar-vertical-offset'];
+    //
+    // app-id / user-id identify which third-party host app (tenant) and
+    // which of that app's end-users this widget instance belongs to — see
+    // CharacterBrain.js. Observed so a host app setting these slightly
+    // after connect (e.g. after an async auth check) still takes effect.
+    return ['avatar-width', 'avatar-height', 'backend', 'app-id', 'user-id', 'avatar-scale', 'avatar-vertical-offset'];
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
+attributeChangedCallback(name, oldValue, newValue) {
     if (name === 'avatar-width') {
       this.style.width = newValue || '';
       this.resize();
@@ -83,11 +88,12 @@ class AvatarModel extends HTMLElement {
       this.style.height = newValue || '';
       this.resize();
     }
-  if (name === 'backend' && newValue) {
+    if (name === 'backend' && newValue) {
       this.backend = newValue;
-      if (this.controller) {
-        this.controller.brain = new CharacterBrain(this.backend, this.instanceId);
-      }
+      this._recreateBrain();
+    }
+    if (name === 'app-id' || name === 'user-id') {
+      this._recreateBrain();
     }
     if (name === 'avatar-scale' || name === 'avatar-vertical-offset') {
       this.avatarScaleConfig.scale = this._floatAttr('avatar-scale');
@@ -95,6 +101,19 @@ class AvatarModel extends HTMLElement {
       // Re-applies to the currently loaded avatar immediately — no reload needed.
       this.avatarManager?.setTransform(this.avatarScaleConfig);
     }
+  }
+
+  /** Rebuilds CharacterBrain with the current backend/app-id/user-id
+   * attributes. Called whenever any of the three changes after the element
+   * is already connected — otherwise a host app setting app-id/user-id
+   * slightly after connect (e.g. from an async auth check) would silently
+   * keep talking to the backend under the wrong tenant/user. */
+  _recreateBrain() {
+    if (!this.controller) return;
+    this.controller.brain = new CharacterBrain(this.backend, this.instanceId, {
+      appId: this.getAttribute('app-id') || undefined,
+      userId: this.getAttribute('user-id') || undefined,
+    });
   }
 
   connectedCallback() {

@@ -337,7 +337,6 @@ for what that's for.
 |---|---|---|---|
 | `/ask` | POST | `{ text, persona, avatar_persona, character_name, voice_en, voice_ja, speak_language, timezone }` | `{ reply, translated_reply, expression, animation, primary, audio_url_en, audio_url_ja, visemes_en, visemes_ja }` |
 | `/translate` | POST | `application/x-www-form-urlencoded`: `text`, `target` | `{ text, romanization }` |
-| `/voices` | GET | — | `{ catalog: { en: [...], ja: [...] }, default_en, default_ja }` |
 | `/history` | GET | query: `character_name` (optional) | `{ history: [{ role, text/content, text_en?, text_ja?, time, character_name? }, ...] }` |
 | `/settings` | GET | — | `{ ui_language, response_language, last_avatar }` |
 | `/settings` | POST | partial patch of the same shape | full saved settings row |

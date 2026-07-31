@@ -6,10 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Avatar</title>
   <style>
-    /* Simple side-by-side layout for testing two instances at once.
-       Overrides just enough of .ai-avatar-shell's single-instance defaults
-       (margin: auto centering, fixed height) so two can sit side by
-       side without clipping or drifting to one side. */
     html, body {
       margin: 0;
       height: 100%;
@@ -42,10 +38,6 @@
       font-size: 13px;
       flex-shrink: 0;
     }
-    /* .ai-avatar-shell normally centers itself on the page via margin: auto
-       and sizes itself to 96svh — inside a flex column here, it needs
-       to fill the remaining space instead, and drop the auto-margins
-       that were centering a single full-page instance. */
     .instance-column > .ai-avatar-shell {
       margin: 0;
       width: 100%;
@@ -59,12 +51,16 @@
 <body>
   <div class="instances-row">
 
+    <!-- Simulates Third-Party App "acme-corp", their user "user-001" -->
     <div class="instance-column">
-      <div class="instance-label">Instance: One</div>
+      <div class="instance-label">App: acme-corp — User: user-001</div>
+      <avatar-setup instance="one"></avatar-setup>
       <div class="ai-avatar-shell">
         <div class="avatar-stage">
           <avatar-model
             instance="one"
+            app-id="acme-corp"
+            user-id="user-001"
             avatar-scale="1"
             avatar-vertical-offset="-1.25"
             backend="http://127.0.0.1:8000"
@@ -77,12 +73,18 @@
       </div>
     </div>
 
+    <!-- Simulates a DIFFERENT third-party app "globex-inc", with a user
+         ID that intentionally collides with the one above ("user-001")
+         to prove app-scoping actually keeps them apart. -->
     <div class="instance-column">
-      <div class="instance-label">Instance: Two</div>
+      <div class="instance-label">App: globex-inc — User: user-001</div>
+      <avatar-setup instance="two"></avatar-setup>
       <div class="ai-avatar-shell">
         <div class="avatar-stage">
           <avatar-model
             instance="two"
+            app-id="globex-inc"
+            user-id="user-001"
             avatar-scale="1"
             avatar-vertical-offset="-1.25"
             backend="http://127.0.0.1:8000"

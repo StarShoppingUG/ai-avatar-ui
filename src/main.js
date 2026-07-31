@@ -5,6 +5,7 @@ import { AvatarStatus } from './components/AvatarStatus.js';
 import { AvatarCaptions } from './components/AvatarCaptions.js';
 import { AvatarInputs } from './components/AvatarInputs.js';
 import { AvatarSettings } from './components/AvatarSettings.js';
+import { AvatarSetup } from './components/AvatarSetup.js';
 
 injectStyles(styleText);
 
@@ -23,6 +24,7 @@ customElements.define('avatar-status', AvatarStatus);
 customElements.define('avatar-captions', AvatarCaptions);
 customElements.define('avatar-inputs', AvatarInputs);
 customElements.define('avatar-settings', AvatarSettings);
+customElements.define('avatar-setup', AvatarSetup);
 
 window.addEventListener('DOMContentLoaded', () => {
   const shell = document.querySelector('.avatar-shell');

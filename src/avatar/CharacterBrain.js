@@ -7,21 +7,37 @@
  * never hard-crashes.
  */
 export class CharacterBrain {
-    constructor(backendUrl = '', instanceId = 'default') {
+    constructor(backendUrl = '', instanceId = 'default', options = {}) {
         this.backend = backendUrl;
         this.instanceId = instanceId;
 
         // 🌍 Get user's timezone automatically (detected once, used for all requests)
         this.userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-        // No accounts — a random id generated once on first visit and cached
-        // in localStorage is what ties chat history and settings to "this
-        // browser" on the backend (see X-User-Id in db.py / backend.py).
-        // Scoped per instance, not just per browser — otherwise two
-        // <avatar-model instance="..."> groups on the same page would
-        // share one X-User-Id and silently share the same settings row
-        // (last_avatar, response_language, ui_language) on the backend.
-        this.userId = CharacterBrain.getOrCreateUserId(instanceId);
+        // Tenant identity — which host application this widget is embedded
+        // in. Third-party integrators pass their own app-id attribute;
+        // anyone else (our own demo, or a host that hasn't configured one)
+        // falls back to the page's hostname, so unrelated deployments still
+        // get natural isolation from each other without any setup.
+        this.appId = CharacterBrain.resolveAppId(options.appId);
+
+        // User identity within that tenant. Third-party host apps that have
+        // their own users pass user-id explicitly, so history/settings
+        // survive across that user's devices. Anyone who doesn't supply one
+        // (our demo included) falls back to the existing behavior: a random
+        // id generated once and cached in localStorage, scoped per instance
+        // so two <avatar-model instance="..."> groups on the same page
+        // don't silently share one identity.
+        this.userId = options.userId || CharacterBrain.getOrCreateUserId(instanceId);
+    }
+
+    static resolveAppId(providedAppId) {
+        if (providedAppId) return providedAppId;
+        try {
+            return window.location.hostname || 'default';
+        } catch (error) {
+            return 'default';
+        }
     }
 
     static getOrCreateUserId(instanceId = 'default') {
@@ -43,13 +59,14 @@ export class CharacterBrain {
 
     /** Headers for a JSON request body (POST /ask, /settings, etc). */
     _jsonHeaders() {
-        return { 'Content-Type': 'application/json', 'X-User-Id': this.userId };
+        return { 'Content-Type': 'application/json', 'X-App-Id': this.appId, 'X-User-Id': this.userId };
     }
 
     /** Headers for a GET/no-body request (history, settings). */
     _headers() {
-        return { 'X-User-Id': this.userId };
+        return { 'X-App-Id': this.appId, 'X-User-Id': this.userId };
     }
+
 
     /**
      * @param {string} text
@@ -74,7 +91,7 @@ export class CharacterBrain {
                 voice_en: voices.en || null,
                 voice_ja: voices.ja || null,
                 speak_language: speakLanguage === 'ja' ? 'ja' : 'en',
-                timezone: this.userTimezone,  // 🌍 Send timezone for real-time date awareness
+                timezone: this.userTimezone,  // Send timezone for real-time date awareness
             }),
         });
         if (!res.ok) throw new Error(`Backend /ask failed (${res.status})`);
