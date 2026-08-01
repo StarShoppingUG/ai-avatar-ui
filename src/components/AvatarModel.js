@@ -245,9 +245,14 @@ hideLoadingOverlay() {
    * status text, avatar-loading events, and settings persistence all stay
    * consistent with a regular selection. */
   retryLoadAvatar() {
-    if (!this.controller) return;
+    if (!this.controller || this._retrying) return;
+    this._retrying = true;
+    if (this.retryBtn) this.retryBtn.disabled = true;
     this.hideErrorOverlay();
-    this.controller.selectAvatar(this.controller.currentAvatarId);
+    this.controller.selectAvatar(this.controller.currentAvatarId).finally(() => {
+      this._retrying = false;
+      if (this.retryBtn) this.retryBtn.disabled = false;
+    });
   }
 
 async loadAvatar(avatarId, avatarData) {

@@ -548,7 +548,12 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
 
     const captionText =
       selectedLang === "en" ? en : selectedLang === "ja" ? ja : en || ja;
-    this.emitCaption(captionText);
+    // Instant preview shown before processAudioQueue() knows the real audio
+    // duration — just the first chunk, so even this early flash never
+    // covers the face. It's replaced almost immediately by the properly
+    // timed chunk sequence below.
+    const [previewChunk] = this.splitIntoCaptionChunks(captionText);
+    this.emitCaption(previewChunk || captionText);
 
     // All three response-language modes now funnel through processAudioQueue
     // so avatar:speaking (and the duration-based timing it relies on) fires
@@ -722,16 +727,21 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
         ? nextData.translated_reply || nextData.text_ja || ""
         : nextData.reply || nextData.text_en || "";
 
-    const captionDuration = nextData.primary === "ja" ? 3200 : 0;
-    const captionId = this.emitCaption(captionText, captionDuration);
     // Use the actually-resolved backend (attribute override, or BACKEND
     // fallback) — not the bare BACKEND constant, which is '' whenever a
     // `backend` attribute is set and would make these paths resolve against
     // whatever origin the page itself is served from instead of the API.
     const backendOrigin = this.model.backend || BACKEND;
+
+    // Filled in once the chunk sequence below finishes. If the audio's own
+    // finished callback fires first (rare — durations are matched, but not
+    // guaranteed to land in the same tick), hideCaption(null) just falls
+    // back to whatever chunk is currently showing — see AvatarCaptions.
+    let lastChunkId = null;
+
     this.lastAudio =
       this.model.emotionSystem?.apply(nextData, backendOrigin, () =>
-        this.hideCaption(captionId),
+        this.hideCaption(lastChunkId),
       ) || null;
 
     const relativeAudioUrl =
@@ -749,7 +759,16 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
       } catch (error) {}
     }
 
+    // Replay the caption as a sequence of short, timed bursts (like real
+    // closed captions) instead of one block of text — see
+    // splitIntoCaptionChunks/playCaptionChunks.
+    const chunks = this.splitIntoCaptionChunks(captionText);
+    const chunkSequence = this.playCaptionChunks(chunks, duration).then((id) => {
+      lastChunkId = id;
+    });
+
     await new Promise((resolve) => setTimeout(resolve, duration + 200));
+    await chunkSequence;
     this.isAudioPlaying = false;
     if (this.audioQueue.length > 0) {
       this.processAudioQueue();
@@ -793,6 +812,70 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
 
   hideCaption(captionId = null) {
     this.emit("hide-caption", { captionId });
+  }
+
+  /** Breaks a reply into short caption-sized pieces so a long reply never
+   * renders as one tall block covering the avatar's face — sentence
+   * boundaries first (English + Japanese punctuation), falling back to a
+   * word-boundary split for any single sentence that's still too long on
+   * its own (e.g. a run-on sentence with no punctuation). */
+  splitIntoCaptionChunks(text, maxChars = 130) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed) return [];
+
+    const sentences = trimmed
+      .split(/(?<=[.!?。！？])\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const chunks = [];
+    for (const sentence of sentences) {
+      if (sentence.length <= maxChars) {
+        chunks.push(sentence);
+        continue;
+      }
+      const words = sentence.split(/\s+/);
+      let current = "";
+      for (const word of words) {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > maxChars && current) {
+          chunks.push(current);
+          current = word;
+        } else {
+          current = next;
+        }
+      }
+      if (current) chunks.push(current);
+    }
+
+    return chunks.length ? chunks : [trimmed];
+  }
+
+  /** Steps through caption chunks as a timed sequence, distributing
+   * totalDurationMs across them proportionally to each chunk's length —
+   * roughly following natural speech pacing without needing real word
+   * timing data. Returns the id of the LAST chunk shown, so the caller can
+   * hide exactly that one once audio playback actually ends (may not
+   * perfectly line up with the measured duration if real playback runs
+   * long/short — see the caller in processAudioQueue). */
+  async playCaptionChunks(chunks, totalDurationMs) {
+    if (!chunks.length) return null;
+
+    const totalChars = chunks.reduce((sum, c) => sum + c.length, 0) || 1;
+    const MIN_CHUNK_MS = 900; // floor so even a short trailing chunk stays readable
+
+    let captionId = null;
+    for (let i = 0; i < chunks.length; i += 1) {
+      const chunk = chunks[i];
+      const share = chunk.length / totalChars;
+      const chunkDuration = Math.max(MIN_CHUNK_MS, Math.round(totalDurationMs * share));
+
+      captionId = this.emitCaption(chunk, chunkDuration);
+      if (i < chunks.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, chunkDuration));
+      }
+    }
+    return captionId;
   }
 
   /**

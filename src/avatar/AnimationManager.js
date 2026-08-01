@@ -94,7 +94,13 @@ export class AnimationManager {
                     return;
                 }
 
-                const filtered = this._filterFaceTracks(clip);
+                let filtered = this._filterFaceTracks(clip);
+                // Corrects Talking.fbx's facing direction (found ~33° needed
+                // in earlier Blender testing) — see
+                // _applyRootRotationCorrection for how/why.
+                if (name === 'talk') {
+                    filtered = this._applyRootRotationCorrection(filtered, 33);
+                }
                 filtered.name = name;
                 
                 const action = this.mixer.clipAction(filtered);
@@ -133,6 +139,50 @@ export class AnimationManager {
         const tracks = clip.tracks.filter((track) => !isFaceTrack(track.name));
         if (tracks.length === clip.tracks.length) return clip;
         return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+    }
+
+    /**
+     * Corrects a clip's facing direction by rotating its ROOT bone's
+     * (Hips) quaternion track — mathematically identical to what parenting
+     * the armature under a rotated Empty in Blender does, just applied
+     * directly to the keyframe data instead of requiring an export
+     * roundtrip. Only rotation values are touched; position/scale tracks
+     * are left completely alone, so this can't cause the scale-blowup we
+     * hit going through Blender.
+     *
+     * @param {THREE.AnimationClip} clip
+     * @param {number} degrees — rotation around the vertical (up) axis.
+     *   Sign is a guess until tested — if the fix turns the character the
+     *   WRONG way, flip to the negative of whatever value you tried.
+     */
+    _applyRootRotationCorrection(clip, degrees) {
+        if (!clip || !degrees) return clip;
+
+        const rootTrack = clip.tracks.find(
+            (track) => /hips/i.test(track.name) && track.name.toLowerCase().includes('quaternion')
+        );
+        if (!rootTrack) {
+            console.warn(`[AnimationManager] Could not find a Hips quaternion track on clip "${clip.name}" to apply rotation correction.`);
+            return clip;
+        }
+
+        const correction = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(0, 1, 0),
+            THREE.MathUtils.degToRad(degrees),
+        );
+
+        const values = rootTrack.values;
+        const q = new THREE.Quaternion();
+        for (let i = 0; i < values.length; i += 4) {
+            q.set(values[i], values[i + 1], values[i + 2], values[i + 3]);
+            q.premultiply(correction); // same effect as a rotated parent Empty
+            values[i] = q.x;
+            values[i + 1] = q.y;
+            values[i + 2] = q.z;
+            values[i + 3] = q.w;
+        }
+
+        return clip;
     }
 
     _actionHasBindings(action) {

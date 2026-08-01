@@ -59,6 +59,14 @@ export class AvatarManager {
 async loadAvatar(url, personaName = null, customization = {}, timeoutMs = 20000) {
         this._removeCurrent();
 
+        // Every call gets a unique token. If a newer loadAvatar() call comes
+        // in before this one finishes, this token becomes stale — used
+        // below to make sure a slow/overlapping load never adds its result
+        // to the scene after being superseded, even if it technically
+        // "succeeds" after the fact.
+        this._loadToken = (this._loadToken || 0) + 1;
+        const myToken = this._loadToken;
+
         return new Promise((resolve, reject) => {
             // On unstable connections the GLTFLoader's fetch can stall
             // indefinitely — it never calls onLoad or onError, it just
@@ -98,10 +106,21 @@ async loadAvatar(url, personaName = null, customization = {}, timeoutMs = 20000)
                     const { scale, verticalOffset } = customization;
                     AvatarScale.apply(wrapper, { scale, verticalOffset });
 
+                    if (settled) return; // timeout already fired, discard this late success
+                    if (myToken !== this._loadToken) {
+                        // A newer loadAvatar() call superseded this one while
+                        // it was in flight — discard this result entirely
+                        // instead of adding a second model to the scene.
+                        settled = true;
+                        clearTimeout(timeoutId);
+                        disposeObject3D(gltf.scene);
+                        reject(new Error('Superseded by a newer avatar load'));
+                        return;
+                    }
+
                     this.scene.add(gltf.scene);
                     this.currentAvatar = wrapper;
 
-                    if (settled) return; // timeout already fired, discard this late success
                     settled = true;
                     clearTimeout(timeoutId);
                     resolve(wrapper);
@@ -113,6 +132,11 @@ async loadAvatar(url, personaName = null, customization = {}, timeoutMs = 20000)
                 },
 (error) => {
                     if (settled) return; // timeout already fired, discard this late error
+                    if (myToken !== this._loadToken) {
+                        settled = true;
+                        clearTimeout(timeoutId);
+                        return; // superseded — nothing to report, the newer load owns the outcome
+                    }
                     settled = true;
                     clearTimeout(timeoutId);
                     // Main: friendly error for missing files
