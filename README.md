@@ -146,40 +146,38 @@ in a browser for a live demo and usage notes.
 - **Multiple Avatars Per Page** — Run several fully independent avatar groups on the same page at once (e.g. a "tutor" and a "receptionist" side by side), each with its own conversation, status, captions, and settings — see [Multiple Avatar Instances](#multiple-avatar-instances).
 
 ---
-
 ## Project Structure
+
+```text
 index.html
 src/
-main.js # Bootstrap: injects styles, registers custom elements, mounts <avatar-model>
-index.css
-components/
-AvatarModel.js # <avatar-model> — 3D scene, camera, lighting, animation/lip-sync wiring, load-error/retry UI
-AvatarController.js # Orchestrator: talks to the backend, owns app state, emits avatar:* events
-AvatarStatus.js # <avatar-status> — status pill (thinking / listening / ready / offline)
-AvatarCaptions.js # <avatar-captions> — on-screen subtitles
-AvatarInputs.js # <avatar-inputs> — text box, send button, mic/voice input
-AvatarSettings.js # <avatar-settings> — avatar/language pickers, chat history panel
-AvatarSetup.js # <avatar-setup> — optional first-visit onboarding step (pick avatar/languages before render)
-AvatarPickerCore.js # Shared avatar-grid/persona-edit logic used by both AvatarSettings and AvatarSetup
-Events.js # Thin pub/sub layer over window CustomEvents
-i18n.js # UI copy (EN/JA) + language helpers
-constants.js # App-wide constants (backend URL, supported languages, etc.)
+  main.js                        # Bootstrap: injects styles, registers custom elements, mounts <avatar-model>
+  index.css
+  components/
+    AvatarModel.js                # <avatar-model> — 3D scene, camera, lighting, animation/lip-sync wiring, load-error/retry UI
+    AvatarController.js           # Orchestrator: talks to the backend, owns app state, emits avatar:* events
+    AvatarStatus.js                # <avatar-status> — status pill (thinking / listening / ready / offline)
+    AvatarCaptions.js              # <avatar-captions> — on-screen subtitles
+    AvatarInputs.js                # <avatar-inputs> — text box, send button, mic/voice input
+    AvatarSettings.js              # <avatar-settings> — avatar/language pickers, chat history panel
+    AvatarSetup.js                 # <avatar-setup> — optional first-visit onboarding step (pick avatar/languages before render)
+    AvatarPickerCore.js            # Shared avatar-grid/persona-edit logic used by both AvatarSettings and AvatarSetup
+    Events.js                      # Thin pub/sub layer over window CustomEvents
+    i18n.js                        # UI copy (EN/JA) + language helpers
+    constants.js                   # App-wide constants (backend URL, supported languages, etc.)
 avatar/
-CharacterBrain.js # Backend API client (fetch wrappers + app-id/user-id identity handling)
-AvatarSources.js # Avatar roster: names, personas, model files, default voices
-AvatarManager.js # Loads/positions the GLB avatar body, disposes the previous one on swap, times out stalled loads
-AvatarScale.js # Normalizes avatar height/build and grounds it in the scene
-AnimationManager.js # Loads and plays Mixamo body clips (idle, talk, think, gestures)
-ExpressionEngine.js # Facial morph targets for emotions (happy, sad, angry, etc.), plus blinking
-ExpressionManagerFallback.js # Legacy viseme/morph fallback used only by LipSync.stop()
-LipSync.js # Audio-driven mouth movement from TTS output (Web Audio analyser)
-EmotionSystem.js # Maps backend behavior JSON to face, body clips, and lip sync together
-CameraFraming.js # Responsive camera framing/zoom that keeps the avatar centered on resize
+  CharacterBrain.js              # Backend API client (fetch wrappers + app-id/user-id identity handling)
+  AvatarSources.js               # Avatar roster: names, personas, model files, default voices
+  AvatarManager.js                # Loads/positions the GLB avatar body, disposes the previous one on swap, times out stalled loads
+  AvatarScale.js                  # Normalizes avatar height/build and grounds it in the scene
+  AnimationManager.js            # Loads and plays Mixamo body clips (idle, talk, think, gestures)
+  ExpressionEngine.js            # Facial morph targets for emotions (happy, sad, angry, etc.), plus blinking
+  ExpressionManagerFallback.js   # Legacy viseme/morph fallback used only by LipSync.stop()
+  LipSync.js                      # Audio-driven mouth movement from TTS output (Web Audio analyser)
+  EmotionSystem.js                # Maps backend behavior JSON to face, body clips, and lip sync together
+  CameraFraming.js                # Responsive camera framing/zoom that keeps the avatar centered on resize
 
-Each file in `components/` maps to a single `customElements.define()` class
-(or a focused shared module), so a given piece of UI behavior almost always
-lives in exactly one place.
-
+```
 ---
 
 ## Web Components
