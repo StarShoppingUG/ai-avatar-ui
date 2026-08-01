@@ -56,7 +56,7 @@ export class AvatarManager {
         this.currentAvatar = null;
     }
 
-async loadAvatar(url, personaName = null, customization = {}, timeoutMs = 20000) {
+async loadAvatar(url, personaName = null, customization = {}, timeoutMs = 30000) {
         this._removeCurrent();
 
         // Every call gets a unique token. If a newer loadAvatar() call comes
