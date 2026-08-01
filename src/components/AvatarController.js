@@ -71,13 +71,21 @@ class AvatarController {
     // selectAvatar() — calling it again here would reload the same GLB
     // a second time for nothing. Only call it directly on the normal
     // (no-setup-shown) path, exactly as before.
+    let loadedOk = true;
     if (!setupWasShown) {
-      await this.selectAvatar(this.currentAvatarId);
+      loadedOk = await this.selectAvatar(this.currentAvatarId);
     }
 
     this.refreshHistory();
 
-    this.emitStatus("Ready", "green");
+    // If setup ran, selectAvatar() already fired its own accurate status
+    // (and load-error) via the 'select-avatar' event listener — don't
+    // stomp it here. If setup didn't run, only announce "Ready" when the
+    // initial load actually succeeded; a failure already emitted its own
+    // red status + load-error via selectAvatar() above.
+    if (setupWasShown || loadedOk) {
+      this.emitStatus("Ready", "green");
+    }
     this.emit("app:ready");
   }
 
@@ -347,17 +355,27 @@ window.addEventListener("avatar:edit-persona", async (event) => {
 
     this.emitCurrentProfile();
 
-    this.emitStatus(`Loading ${avatar.name}…`, "yellow");
+this.emitStatus(`Loading ${avatar.name}…`, "yellow");
     this.emit("avatar-loading", { active: true });
 
-    await this.model.loadAvatar(avatarId, avatar);
+const loaded = await this.model.loadAvatar(avatarId, avatar);
 
     this.emit("avatar-loading", { active: false });
-    this.emitStatus("Ready", "green");
+    // Only announce "Ready" on an actual success — loadAvatar() already
+    // emitted its own red error status on failure; overwriting it here
+    // unconditionally was exactly what made a failed/blank load look fine.
+    if (loaded) {
+      this.emitStatus("Ready", "green");
+    }
+    // Lets avatar-inputs disable the textarea/mic/send while the model is
+    // broken, and re-enable them once a retry succeeds.
+    this.emit("load-error", { active: !loaded });
 
     // Switching avatars means the chat history panel should now show this
     // avatar's own past messages, not whatever the previous avatar had.
     this.refreshHistory();
+
+    return loaded;
   }
 
   /** Emits update-profile for the currently-selected avatar, including

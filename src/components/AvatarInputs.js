@@ -88,9 +88,14 @@ this.isTranscribing = false;
       this.isThinking = Boolean(event.detail?.active);
       this.refreshInputAvailability();
     });
-    window.addEventListener('avatar:avatar-loading', (event) => {
+window.addEventListener('avatar:avatar-loading', (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.isLoadingAvatar = Boolean(event.detail?.active);
+      this.refreshInputAvailability();
+    });
+    window.addEventListener('avatar:load-error', (event) => {
+      if (event.detail?.instance !== this.instanceId) return;
+      this.hasLoadError = Boolean(event.detail?.active);
       this.refreshInputAvailability();
     });
   }
@@ -155,8 +160,8 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
     }
   }
 
-  submitMessage() {
-    if (this.isTranscribing || this.isSpeaking || this.isThinking || this.isLoadingAvatar) return;
+submitMessage() {
+    if (this.isTranscribing || this.isRecording || this.isSpeaking || this.isThinking || this.isLoadingAvatar) return;
     const text = String(this.input?.value || '').trim();
     if (!text) return;
     this.input.value = '';
@@ -214,7 +219,7 @@ this.sendBtn = this._resolveExternal(this._externalSendSelector) || this.querySe
   // be queued up yet. Voice recording (isTranscribing) already locked the
   // send button on its own; it's folded into the same check here.
 refreshInputAvailability() {
-    const busy = this.isSpeaking || this.isThinking || this.isLoadingAvatar;
+    const busy = this.isSpeaking || this.isThinking || this.isLoadingAvatar || this.hasLoadError;
     const inputBusy = busy || this.isTranscribing || this.isRecording;
 
     if (this.input) {
@@ -276,7 +281,16 @@ refreshInputAvailability() {
       }
     };
 
-    recognizer.onerror = (event) => {
+recognizer.onerror = (event) => {
+      // Chrome sometimes fires a trailing no-speech/aborted error right
+      // after recognizer.stop() is called manually. stopListening() sets
+      // isListening=false synchronously before this can fire, so if we're
+      // not "listening" anymore, this is a spurious trailing error from
+      // our own deliberate stop, not a real failure — ignore it.
+      // Otherwise it races finishRecordingAndTranscribe(), nulling
+      // mediaRecorder before it runs and causing transcription to
+      // silently skip straight to "Ready".
+      if (!this.isListening) return;
       this.emit('update-status', { text: `Mic error: ${event.error || 'unknown'}`, color: 'red' });
       this.stopListening(false);
     };

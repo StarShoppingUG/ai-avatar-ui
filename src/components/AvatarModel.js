@@ -116,26 +116,33 @@ attributeChangedCallback(name, oldValue, newValue) {
     });
   }
 
-  connectedCallback() {
+connectedCallback() {
     if (this._connected) return;
     this._connected = true;
     this.classList.add('avatar-model');
     this.render();
     this.canvas = this.querySelector('.avatar-canvas');
     this.loadingOverlay = this.querySelector('.avatar-loading-overlay');
+    this.errorOverlay = this.querySelector('.avatar-error-overlay');
+    this.retryBtn = this.querySelector('.avatar-retry-btn');
+    this.retryBtn?.addEventListener('click', () => this.retryLoadAvatar());
     this.initThree();
     this.bindResize();
     this.controller = new AvatarController(this);
     this.controller.init();
   }
 
-  render() {
+render() {
     this.innerHTML = `
       <div class="avatar-frame">
         <canvas class="avatar-canvas avatar-canvas--loading" aria-label="Avatar canvas"></canvas>
         <img class="photo-2d-canvas" alt="Photo Render" />
         <div class="avatar-loading-overlay visible" aria-hidden="true">
           <div class="avatar-spinner"></div>
+        </div>
+        <div class="avatar-error-overlay" aria-hidden="true">
+          <div class="avatar-error-message">Couldn't load the avatar — this is most likely due to an unstable internet connection.</div>
+          <button type="button" class="avatar-retry-btn">Retry</button>
         </div>
       </div>
     `;
@@ -215,17 +222,40 @@ attributeChangedCallback(name, oldValue, newValue) {
     this.canvas?.classList.add('avatar-canvas--loading');
   }
 
-  hideLoadingOverlay() {
+hideLoadingOverlay() {
     this.loadingOverlay?.classList.remove('visible');
     this.canvas?.classList.remove('avatar-canvas--loading');
   }
 
+  showErrorOverlay(message = 'Failed to load avatar') {
+    if (!this.errorOverlay) return;
+    const msgEl = this.errorOverlay.querySelector('.avatar-error-message');
+    if (msgEl) msgEl.textContent = message;
+    this.errorOverlay.classList.add('visible');
+    this.errorOverlay.setAttribute('aria-hidden', 'false');
+  }
+
+  hideErrorOverlay() {
+    this.errorOverlay?.classList.remove('visible');
+    this.errorOverlay?.setAttribute('aria-hidden', 'true');
+  }
+
+  /** Re-attempts loading whatever avatar was last selected, going through
+   * the controller's normal selectAvatar() flow (not a separate path) so
+   * status text, avatar-loading events, and settings persistence all stay
+   * consistent with a regular selection. */
+  retryLoadAvatar() {
+    if (!this.controller) return;
+    this.hideErrorOverlay();
+    this.controller.selectAvatar(this.controller.currentAvatarId);
+  }
+
 async loadAvatar(avatarId, avatarData) {
     const avatar = avatarData || lookupAvatar(avatarId, this.instanceId);
-    if (!avatar) return;
+    if (!avatar) return false;
     this.controller?.emitStatus(`Loading ${avatar.name}…`, 'yellow');
+    this.hideErrorOverlay(); // clear any previous failed-load state before retrying
     this.showLoadingOverlay();
-
 
     try {
       this.currentAvatarModel = await this.avatarManager.loadAvatar(
@@ -239,15 +269,20 @@ async loadAvatar(avatarId, avatarData) {
 
       this.cameraFraming.resize();
       this.hideLoadingOverlay();
+      return true;
     }  catch (error) {
-  console.error(`[avatar-model] Failed to load avatar "${avatar.name}":`, error);
+console.error(`[avatar-model] Failed to load avatar "${avatar.name}":`, error);
   this.currentAvatarModel = null;
   this.expressionEngine = null;
   this.lipSync = null;
   this.animationManager = null;
   this.emotionSystem = null;
-  this.controller?.emitStatus('Ready (no model)', 'green');
+  // Red, not green — this IS an error state (blank 3D area), the previous
+  // green "Ready (no model)" made a failed load look successful.
+this.controller?.emitStatus('Avatar failed to load', 'red');
   this.hideLoadingOverlay();
+  this.showErrorOverlay('This is most likely due to an unstable internet connection.');
+  return false;
 }
   }
 

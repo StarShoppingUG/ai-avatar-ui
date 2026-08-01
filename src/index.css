@@ -179,6 +179,48 @@ avatar-status {
   to { transform: rotate(360deg); }
 }
 
+.avatar-error-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: transparent;
+  backdrop-filter: blur(6px);
+  z-index: 6;
+  text-align: center;
+  padding: 20px;
+}
+.avatar-error-overlay.visible {
+  display: flex;
+}
+.avatar-error-message {
+  color: var(--red);
+  font-weight: 600;
+}
+.avatar-retry-btn {
+  padding: 10px 22px;
+  border-radius: 18px;
+  font-weight: 700;
+  background: rgba(228, 61, 86, 0.16);
+  border: 1px solid rgba(251, 113, 133, 0.3);
+  color: var(--red);
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.avatar-retry-btn:hover {
+  background: rgba(246, 37, 68, 0.26);
+  border-color: rgba(241, 18, 52, 0.5);
+  transform: translateY(-1px);
+}
+.avatar-retry-btn:active {
+  transform: translateY(0);
+}
+
 
 .status-pill {
   width: max-content;

@@ -56,10 +56,24 @@ export class AvatarManager {
         this.currentAvatar = null;
     }
 
-    async loadAvatar(url, personaName = null, customization = {}) {
+async loadAvatar(url, personaName = null, customization = {}, timeoutMs = 20000) {
         this._removeCurrent();
 
         return new Promise((resolve, reject) => {
+            // On unstable connections the GLTFLoader's fetch can stall
+            // indefinitely — it never calls onLoad or onError, it just
+            // hangs. Without this, the caller's await never resolves and
+            // the UI gets stuck (or, combined with an unconditional
+            // "Ready" elsewhere, silently looks fine while staying blank).
+            let settled = false;
+            const timeoutId = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                reject(new Error(
+                    `Avatar load timed out after ${timeoutMs}ms for "${url}" — check your connection.`
+                ));
+            }, timeoutMs);
+
             this.loader.load(
                 url,
                 (gltf) => {
@@ -87,6 +101,9 @@ export class AvatarManager {
                     this.scene.add(gltf.scene);
                     this.currentAvatar = wrapper;
 
+                    if (settled) return; // timeout already fired, discard this late success
+                    settled = true;
+                    clearTimeout(timeoutId);
                     resolve(wrapper);
                 },
                 (xhr) => {
@@ -94,7 +111,10 @@ export class AvatarManager {
                         const pct = Math.round((xhr.loaded / xhr.total) * 100);
                     }
                 },
-                (error) => {
+(error) => {
+                    if (settled) return; // timeout already fired, discard this late error
+                    settled = true;
+                    clearTimeout(timeoutId);
                     // Main: friendly error for missing files
                     const raw = (error && error.message) || String(error);
                     const friendly = /Unexpected token|JSON|DOCTYPE/i.test(raw)
