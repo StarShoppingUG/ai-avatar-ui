@@ -1,3 +1,153 @@
+# AI Avatar UI
+
+The frontend module for the AI Avatar interface — a set of framework-free Web
+Components (built with Vite) that render a talking 3D avatar, handle chat
+input and voice, and stay in sync with a backend for AI replies,
+text-to-speech, and persisted chat history.
+
+## 🚀 Live Demo
+
+**[Check out the live demo →](https://ai-avatar-ui-ghost.vercel.app/)**
+
+## Load It From Vercel
+
+The latest build is hosted at
+[`ai-avatar-ui-ghost.vercel.app`](https://ai-avatar-ui-ghost.vercel.app/) —
+no npm install or build step needed. Drop this into any page:
+
+Html
+```html
+ <div class="ai-avatar-shell">
+    <div class="avatar-stage">
+      <avatar-model
+        backend="backend-url"
+        app-id="your-app-id"
+        avatar-scale="1"
+        avatar-vertical-offset="-1.25"
+      ></avatar-model>
+      <avatar-captions></avatar-captions>
+    </div>
+    <avatar-status></avatar-status>
+    <avatar-settings></avatar-settings>
+
+    <!-- Optional: point avatar-inputs at your own chat UI instead of its
+         built-in textarea/buttons. Each attribute is independent — supply
+         one, two, or all three; omit any of them to keep the built-in
+         default for that piece. See Custom Input Elements below. -->
+    <!--
+    <div class="my-existing-chat-bar">
+      <textarea id="my-chat-input"></textarea>
+      <button id="my-mic-btn">🎤</button>
+      <button id="my-send-btn">Send</button>
+    </div>
+    <avatar-inputs
+      text-input="#my-chat-input"
+      send-button="#my-send-btn"
+      mic-button="#my-mic-btn"
+    ></avatar-inputs> -->
+   <avatar-inputs></avatar-inputs>
+   
+  </div>
+
+  <script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
+```
+React/Next.js
+```jsx
+'use client'
+import { useEffect } from 'react';
+
+export default function AvatarWidget() {
+  useEffect(() => {
+    // Dynamically load the Web Component script when the component mounts
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      // Clean up the script when the component unmounts
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  return (
+    <div className="ai-avatar-shell">
+      <div className="avatar-stage">
+        <avatar-model
+          backend="backend-url"
+          app-id="your-app-id"
+          avatar-scale="1"
+          avatar-vertical-offset="-1.25"
+        />
+        <avatar-captions />
+      </div>
+      <avatar-status />
+      <avatar-settings />
+      {/* Optional: point avatar-inputs at your own chat UI instead of its
+          built-in textarea/buttons. Each attribute is independent — supply
+          one, two, or all three; omit any of them to keep the built-in
+          default for that piece. See Custom Input Elements below. */}
+      {/*<div className="my-existing-chat-bar">
+        <textarea id="my-chat-input" />
+        <button id="my-mic-btn">🎤</button>
+        <button id="my-send-btn">Send</button>
+      </div>
+      <avatar-inputs
+        text-input="#my-chat-input"
+        send-button="#my-send-btn"
+        mic-button="#my-mic-btn"
+      />*/}
+      <avatar-inputs />
+    </div>
+  );
+}
+```
+
+
+Set `backend` to wherever your own backend (implementing the
+[API Contract](#api-contract) below) is running — see
+[Persistence & Identity](#persistence--identity) and the
+[Backend](#backend) section for details. `app-id` is optional but
+recommended for any third-party integration — see
+[Persistence & Identity](#persistence--identity). Visit the URL directly
+in a browser for a live demo and usage notes.
+
+## Screenshots
+
+<p align="center">
+  <img src="public/Screenshot1.png" width="48%" />
+  <img src="public/Screenshot2.png" width="48%" />
+</p>
+<p align="center">
+  <img src="public/Screenshot3.png" width="48%" />
+  <img src="public/Screenshot4.png" width="48%" />
+</p>
+<p align="center">
+  <img src="public/Screenshot5.png" width="48%" />
+  <img src="public/Screenshot6.png" width="48%" />
+</p>
+
+---
+
+## Features
+
+- **Dual-Language Support** — Interface text and reply language can switch between **English** and **Japanese** (日本語).
+- **3D Lip-Sync** — Powered by `three.js`, driving real-time facial morphs and animations from server-generated visemes.
+- **Multiple Avatars** — Switch between characters at runtime; each keeps its own persona, voice, and chat history.
+- **Persistent Chat History & Settings** — Reply language, interface language, and your last-selected avatar are remembered across visits, with no account or login required (see [Persistence & Identity](#persistence--identity)).
+- **Multi-Tenant Ready** — Third-party apps embedding this widget can pass their own `app-id` (and optionally `user-id`) so each integrator's users stay fully isolated from every other integrator's, with no login system required on either side (see [Persistence & Identity](#persistence--identity)).
+- **First-Visit Avatar Setup** — An optional `<avatar-setup>` step lets a new visitor pick their avatar, reply language, and interface language before the 3D model ever renders — see [Avatar Setup](#avatar-setup).
+- **Offline Fallback** — If the backend drops, the avatar keeps moving safely with a neutral expression and an "offline" animation instead of freezing or crashing.
+- **Load-Failure Recovery** — A failed avatar load (e.g. an unstable connection while fetching the GLB) shows a clear retry prompt over the 3D area instead of silently leaving it blank, and disables chat input until the retry succeeds — see [Load Error Handling](#load-error-handling).
+- **Auto-Timezone Awareness** — Detects the browser's timezone automatically so the AI is grounded in the real current date and time.
+- **Voice Input** — Live interim captions via the browser's SpeechRecognition API, with the final transcript refined server-side via Whisper.
+- **Editable Personas** — Each avatar's persona (English and Japanese) can be edited directly from the settings panel, with a one-click reset back to its built-in default. Edits are per-browser (stored in `localStorage`) and per-avatar, and editing either language automatically translates and fills in the other via the backend's `/translate` endpoint.
+- **Bring-Your-Own Input UI** — `<avatar-inputs>` can adopt an existing text field, send button, and/or mic button already on your page instead of rendering its own — see [Custom Input Elements](#custom-input-elements).
+- **Multiple Avatars Per Page** — Run several fully independent avatar groups on the same page at once (e.g. a "tutor" and a "receptionist" side by side), each with its own conversation, status, captions, and settings — see [Multiple Avatar Instances](#multiple-avatar-instances).
+
+---
+
+## Project Structure
 index.html
 src/
 main.js # Bootstrap: injects styles, registers custom elements, mounts <avatar-model>
@@ -25,6 +175,7 @@ ExpressionManagerFallback.js # Legacy viseme/morph fallback used only by LipSync
 LipSync.js # Audio-driven mouth movement from TTS output (Web Audio analyser)
 EmotionSystem.js # Maps backend behavior JSON to face, body clips, and lip sync together
 CameraFraming.js # Responsive camera framing/zoom that keeps the avatar centered on resize
+
 Each file in `components/` maps to a single `customElements.define()` class
 (or a focused shared module), so a given piece of UI behavior almost always
 lives in exactly one place.
