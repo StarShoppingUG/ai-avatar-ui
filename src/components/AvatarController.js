@@ -73,7 +73,9 @@ class AvatarController {
     // (no-setup-shown) path, exactly as before.
     let loadedOk = true;
     if (!setupWasShown) {
-      loadedOk = await this.selectAvatar(this.currentAvatarId);
+      // Restoring the persisted (or fallback) avatar on startup — never
+      // save here, see the comment in selectAvatar() for why.
+      loadedOk = await this.selectAvatar(this.currentAvatarId, { persist: false });
     }
 
     this.refreshHistory();
@@ -331,7 +333,7 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     }
   }
 
-  async selectAvatar(avatarId) {
+  async selectAvatar(avatarId, { persist = true } = {}) {
     const avatar = lookupAvatar(avatarId, this.instanceId);
     if (!avatar) {
       return;
@@ -350,8 +352,17 @@ window.addEventListener("avatar:edit-persona", async (event) => {
         `[avatar-init] selectAvatar: unknown avatarId "${avatarId}", falling back to "${avatar.name}"`,
       );
     }
-    this.currentAvatarId = avatar.id;    
-    this.brain.saveSettings({ last_avatar: avatar.id }).catch(() => {});
+    this.currentAvatarId = avatar.id;
+    // persist=false is used for init()'s own restore-from-backend call —
+    // saving there would re-write whatever currentAvatarId happens to be
+    // (including the constructor's DEFAULT_AVATAR_ID fallback if
+    // loadPersistedSettings() failed/timed out) back over the user's real
+    // saved preference, silently corrupting it. Only an actual user
+    // selection (via the avatar:select-avatar event listener, or the
+    // avatar-setup Continue flow) should ever write to the backend.
+    if (persist) {
+      this.brain.saveSettings({ last_avatar: avatar.id }).catch(() => {});
+    }
 
     this.emitCurrentProfile();
 
