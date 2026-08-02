@@ -312,7 +312,7 @@ avatar-status {
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.24s ease, transform 0.24s ease;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
 }
 .avatar-caption.visible {
