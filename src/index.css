@@ -112,9 +112,9 @@ avatar-status {
 /* 3. Avatar Stage (3D canvas) */
 .ai-avatar-shell .avatar-stage {
   grid-column: 1 / span 2;
-  grid-row: 2;
+  grid-row: 2 / 4;   /* extend through the inputs row too */
   position: relative;
-  min-height: 0; /* let the 1fr row actually shrink/grow this */
+  min-height: 0;
   width: 100%;
   height: 100%;
 }
