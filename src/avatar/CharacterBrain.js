@@ -11,7 +11,7 @@ export class CharacterBrain {
         this.backend = backendUrl;
         this.instanceId = instanceId;
 
-        // 🌍 Get user's timezone automatically (detected once, used for all requests)
+        // Get user's timezone automatically (detected once, used for all requests)
         this.userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
         // Tenant identity — which host application this widget is embedded
@@ -147,10 +147,19 @@ async translate(text, target = 'ja') {
             method: 'POST',
             headers: this._jsonHeaders(),
             body: JSON.stringify(patch),
+            // Lets the browser finish this request in the background even
+            // if the tab is closed/navigated away right after it's fired —
+            // without this, a fire-and-forget save (see selectAvatar() and
+            // the response-language listener in AvatarController.js) can
+            // get silently cancelled mid-flight on a slow connection,
+            // making a just-picked avatar or language "randomly" fail to
+            // persist depending on how quickly the user closes the tab.
+            keepalive: true,
         });
         if (!res.ok) throw new Error(`Backend /settings (save) failed (${res.status})`);
         return res.json();
     }
+
 
     /** Clears chat history. @param {string} [characterName] - when given, only
      * that avatar's turns are cleared; omit to clear everything for this user. */
