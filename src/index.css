@@ -24,6 +24,55 @@ avatar-settings *, avatar-setup * {
   color-scheme: dark;
 }
 
+/* Hidden until the controller confirms persisted settings (avatar, UI
+   language, reply language) have actually been applied — see main.js's
+   app:ready listener. Applied to each component individually (not a
+   wrapper) so this works whether or not a page uses .ai-avatar-shell —
+   these elements are documented as usable standalone, placed anywhere on
+   a page. avatar-setup is excluded — it manages its own show()/hide()
+   visibility as part of the onboarding flow and should never be forced
+   hidden by this. */
+avatar-model, avatar-status, avatar-captions, avatar-inputs, avatar-settings {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+avatar-model.avatar-app-ready,
+avatar-status.avatar-app-ready,
+avatar-captions.avatar-app-ready,
+avatar-inputs.avatar-app-ready,
+avatar-settings.avatar-app-ready {
+  opacity: 1;
+}
+
+/* Shell-level loading spinner, shown ONLY while avatar-model is still
+   hidden (i.e. app:ready hasn't fired yet for this instance) — see
+   main.js, which toggles .avatar-app-loading on .ai-avatar-shell. Gives
+   the wait something to look at instead of a blank page that then pops
+   straight to full content, which is what read as "unsmooth" before. */
+.ai-avatar-shell {
+  position: relative;
+}
+.avatar-app-boot-spinner {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  pointer-events: none;
+}
+.ai-avatar-shell.avatar-app-loading .avatar-app-boot-spinner {
+  display: flex;
+}
+.avatar-app-boot-spinner .avatar-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--blue);
+  animation: avatar-spin 0.8s linear infinite;
+}
+
 avatar-status, avatar-settings, avatar-setup, avatar-inputs, avatar-captions {
   color: var(--text);
 }
@@ -44,7 +93,13 @@ avatar-status, avatar-settings, avatar-setup, avatar-inputs, avatar-captions {
   color: #f5f7fb;
   display: grid;
   gap: 10px;
+  /* Explicit two-column split (rather than leaving columns auto-sized)
+     so avatar-status/avatar-settings don't cause the whole shell to
+     visibly resize as their text content changes during load (status
+     "Initializing…" → "Ready", empty settings button → avatar name). */
+  grid-template-columns: 1fr 1fr;
   grid-template-rows: auto 1fr auto;
+  width: 100%;
   max-width: 900px;
   margin: auto;
   padding: 0 10px;
