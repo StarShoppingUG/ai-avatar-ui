@@ -150,26 +150,45 @@ class AvatarController {
     // we fail toward skipping the setup gate rather than blocking every
     // visitor on it — matches the existing non-fatal handling of this call.
     this._isFirstVisit = false;
-    try {
-      const settings = await this.brain.getSettings();
-      this._isFirstVisit = !settings.last_avatar;
-      if (settings.last_avatar) {
-        this.currentAvatarId = settings.last_avatar;
+
+    // One retry after a short delay — covers a cold-started backend (e.g.
+    // Railway free tier spinning back up after ~30min idle) where the
+    // FIRST request can fail/timeout while the container wakes up, even
+    // though the backend is completely fine moments later. Without this,
+    // a cold start makes the app briefly show the default avatar/language
+    // for one load, which then "fixes itself" on the next reload — this
+    // retry absorbs that instead of surfacing it to the user at all.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const settings = await this.brain.getSettings();
+        this._isFirstVisit = !settings.last_avatar;
+        if (settings.last_avatar) {
+          this.currentAvatarId = settings.last_avatar;
+        }
+        if (
+          settings.response_language &&
+          RESPONSE_LANGUAGES.includes(settings.response_language)
+        ) {
+          this.responseLanguage = settings.response_language;
+        }
+        if (settings.ui_language && UI_LANGUAGES.includes(settings.ui_language)) {
+          applyUiLanguageToApp(settings.ui_language, this.instanceId);
+        }
+        return; // success — no retry needed
+      } catch (error) {
+        const isLastAttempt = attempt === 1;
+        console.error(
+          `[avatar-init] loadPersistedSettings failed (attempt ${attempt + 1}/2)` +
+            (isLastAttempt ? " — falling back to in-code defaults:" : " — retrying:"),
+          error,
+        );
+        if (!isLastAttempt) {
+          // Brief pause before retrying — gives a cold-starting backend a
+          // moment to actually finish waking up rather than hammering it
+          // again instantly.
+          await new Promise((resolve) => setTimeout(resolve, 2500));
+        }
       }
-      if (
-        settings.response_language &&
-        RESPONSE_LANGUAGES.includes(settings.response_language)
-      ) {
-        this.responseLanguage = settings.response_language;
-      }
-      if (settings.ui_language && UI_LANGUAGES.includes(settings.ui_language)) {
-        applyUiLanguageToApp(settings.ui_language, this.instanceId);
-      }
-    } catch (error) {
-      console.error(
-        "[avatar-init] loadPersistedSettings failed — falling back to in-code defaults:",
-        error,
-      );
     }
   }
 
