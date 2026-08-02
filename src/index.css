@@ -8,13 +8,12 @@
   --red: #fb7185;
 }
 
-/* Base reset + dark color-scheme for every avatar-* component, regardless
-   of whether it's nested inside .ai-avatar-shell or placed anywhere else
-   on the page. */
 avatar-model, avatar-status, avatar-captions, avatar-inputs,
 avatar-settings, avatar-setup,
 avatar-model *, avatar-status *, avatar-captions *, avatar-inputs *,
-avatar-settings *, avatar-setup * {
+avatar-settings *, avatar-setup *,
+.ai-avatar-shell,
+.ai-avatar-shell * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -25,13 +24,7 @@ avatar-settings *, avatar-setup * {
 }
 
 /* Hidden until the controller confirms persisted settings (avatar, UI
-   language, reply language) have actually been applied — see main.js's
-   app:ready listener. Applied to each component individually (not a
-   wrapper) so this works whether or not a page uses .ai-avatar-shell —
-   these elements are documented as usable standalone, placed anywhere on
-   a page. avatar-setup is excluded — it manages its own show()/hide()
-   visibility as part of the onboarding flow and should never be forced
-   hidden by this. */
+   language, reply language) have actually been applied */
 avatar-model, avatar-status, avatar-captions, avatar-inputs, avatar-settings {
   opacity: 0;
   transition: opacity 0.35s ease;
@@ -44,11 +37,7 @@ avatar-settings.avatar-app-ready {
   opacity: 1;
 }
 
-/* Shell-level loading spinner, shown ONLY while avatar-model is still
-   hidden (i.e. app:ready hasn't fired yet for this instance) — see
-   main.js, which toggles .avatar-app-loading on .ai-avatar-shell. Gives
-   the wait something to look at instead of a blank page that then pops
-   straight to full content, which is what read as "unsmooth" before. */
+
 .ai-avatar-shell {
   position: relative;
 }
@@ -77,38 +66,24 @@ avatar-status, avatar-settings, avatar-setup, avatar-inputs, avatar-captions {
   color: var(--text);
 }
 
-.ai-avatar-shell,
-.ai-avatar-shell * {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  border-radius: 14px;
-  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  font-size: clamp(11px, 1vw + 8px, 16px);
-}
 .ai-avatar-shell {
   color-scheme: dark;
   background: transparent;
-  padding: 10px;
   color: #f5f7fb;
   display: grid;
   gap: 10px;
-  /* Explicit two-column split (rather than leaving columns auto-sized)
-     so avatar-status/avatar-settings don't cause the whole shell to
-     visibly resize as their text content changes during load (status
-     "Initializing…" → "Ready", empty settings button → avatar name). */
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto 1fr auto;
   width: 100%;
   max-width: 900px;
   margin: auto;
   padding: 0 10px;
-  height: 96vh;              /* fallback for browsers without dvh/svh support */
-  height: 96svh;             /* uses the smallest guaranteed visible height — safest against toolbars */
+  height: 100%;
+  min-height: 320px;
   position: relative;
 }
 
-/* 1. Top Left Settings */
+/* 1. Top Left Status */
 /* Visual appearance — applies no matter where avatar-status is placed */
 avatar-status {
   display: inline-flex;
@@ -120,22 +95,21 @@ avatar-status {
   box-shadow: 0 4px 14px rgba(0,0,0,0.2);
 }
 
-
-/* 1. Top Left Settings — grid position only applies inside the shell layout */
+/* 1. Top Left Status — grid position only applies inside the shell layout */
 .ai-avatar-shell avatar-status {
   grid-column: 1;
   grid-row: 1;
   justify-self: start; /* Standard top-left positioning */
 }
 
-/* 2. Top Right Status */
+/* 2. Top Right Settings */
 .ai-avatar-shell avatar-settings {
   grid-column: 2;
   grid-row: 1;
   justify-self: end; /* Standard top-right positioning */
 }
 
-/* 4. Captions Overlaid On The Avatar */
+/* 3. Avatar Stage (3D canvas) */
 .ai-avatar-shell .avatar-stage {
   grid-column: 1 / span 2;
   grid-row: 2;
@@ -145,6 +119,7 @@ avatar-status {
   height: 100%;
 }
 
+/* 4. Captions Overlaid On The Avatar */
 .ai-avatar-shell avatar-captions {
   position: absolute;
   left: 0;
@@ -156,17 +131,12 @@ avatar-status {
   display: grid;
   place-items: center start;
   z-index: 30;
-
 }
 
 /* 5. Inputs Below Captions */
 .ai-avatar-shell avatar-inputs {
   grid-column: 1 / span 2; /* Keeps consistent full width layout */
   grid-row: 3;
-  /* Position unchanged from original layout — this only guarantees that IF
-     the textarea grows tall enough to visually reach into the avatar's
-     space (long multi-line messages), it paints above the 3D model instead
-     of being hidden behind its canvas. Doesn't move or resize anything. */
   position: relative;
   z-index: 20;
 }
@@ -276,13 +246,12 @@ avatar-status {
   transform: translateY(0);
 }
 
-
 .status-pill {
   width: max-content;
   height: max-content;
   display: inline-flex;
   align-items: center;
-  padding: 5px 16px; 
+  padding: 5px 16px;
   gap: 12px;
   color: #fff;
   font-weight: 700;
@@ -295,8 +264,7 @@ avatar-status {
   height: 12px;
   border-radius: 999px;
   background: #fff;
-  
-  box-shadow: 
+  box-shadow:
     0 0 0 2px rgba(255, 255, 255, 0.18), /* Brighter, crisper inner ring */
     0 0 6px 1px rgba(0, 0, 0, 0.42);       /* Deepened outer dark ring */
 }
@@ -308,11 +276,11 @@ avatar-status {
 .avatar-caption {
   width: 100%;
   color: #fff;
-  text-align:center;
+  text-align: center;
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.24s ease, transform 0.24s ease;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
 }
 .avatar-caption.visible {
@@ -356,11 +324,10 @@ avatar-status {
   color: #becde1;
   opacity: 1; /* Eliminates browser default fading */
   /* The "No Blur" Intermediate Fix: Keeps it soft but perfectly crisp */
-  text-shadow: 
+  text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.45), /* A very small, tight drop down */
     0 0 1px rgba(0, 0, 0, 0.25);   /* A tiny, soft wrapper shadow */
 }
-
 
 .chat-input:disabled {
   opacity: 0.5;
@@ -398,12 +365,12 @@ avatar-status {
 }
 /* Targets the SVG inside the button to make it larger */
 .mic-btn svg {
-  width: 22px; 
-  height: 22px; 
+  width: 22px;
+  height: 22px;
 }
 
 .mic-btn:hover {
-  color: #3b82f6; 
+  color: #3b82f6;
   background-color: rgba(59, 130, 246, 0.12); /* Matching soft blue glass background */
   border-color: rgba(59, 130, 246, 0.3); /* Glowing border edge */
   box-shadow: 0 0 16px rgba(59, 130, 246, 0.25); /* Ultra-soft, high-end neon ambient glow */
@@ -419,39 +386,35 @@ avatar-status {
   background-color: #ff6b7f;
   border-color: #ff4757;
   color: #ffffff;
-  
   /* Blended multi-ring ambient shadow layers */
-  box-shadow: 
-    0 0 0 3px rgba(255, 107, 127, 0.15), 
+  box-shadow:
+    0 0 0 3px rgba(255, 107, 127, 0.15),
     0 0 20px rgba(255, 107, 127, 0.4);
-    
   /* Smooth breathing animation */
-  animation: mic-pulse 2s ease-in-out infinite; 
+  animation: mic-pulse 2s ease-in-out infinite;
 }
 
-/* Premium smooth breathing/pulsing animation effect */
+
 @keyframes mic-pulse {
   0% {
     transform: scale(1);
-    box-shadow: 
-      0 0 0 0px rgba(255, 107, 127, 0.4), 
+    box-shadow:
+      0 0 0 0px rgba(255, 107, 127, 0.4),
       0 0 10px rgba(255, 107, 127, 0.3);
   }
   50% {
     transform: scale(1.03); /* Soft subtle swell */
-    box-shadow: 
+    box-shadow:
       0 0 0 8px rgba(255, 107, 127, 0), /* Ring expands and dissipates flawlessly */
       0 0 25px rgba(255, 107, 127, 0.55); /* Glow warms up */
   }
   100% {
     transform: scale(1);
-    box-shadow: 
-      0 0 0 0px rgba(255, 107, 127, 0), 
+    box-shadow:
+      0 0 0 0px rgba(255, 107, 127, 0),
       0 0 10px rgba(255, 107, 127, 0.3);
   }
 }
-
-
 
 /* Rightmost Send Action */
 .send-btn {
@@ -497,6 +460,7 @@ avatar-status {
 }
 
 .profile-card {
+  position: relative; /* anchors .persona-edit-actions in the corner */
   display: flex;
   flex-direction: column;
   padding: 16px;
@@ -536,10 +500,6 @@ avatar-status {
   border-radius: 14px 14px 0 0;
 }
 
-.profile-card {
-  position: relative; /* anchors .persona-edit-actions in the corner */
-}
-
 .persona-edit-actions {
   position: absolute;
   top: 16px;
@@ -554,8 +514,6 @@ avatar-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
   width: max-content;
   height: max-content;
   padding: 6px;
@@ -634,7 +592,6 @@ avatar-status {
   box-shadow: 0 4px 14px rgba(0,0,0,0.2);
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
-  
 }
 
 .settings-toggle:hover,
@@ -642,12 +599,11 @@ avatar-status {
 .history-clear:hover,
 .confirm-reset-cancel:hover,
 .confirm-reset-confirm:hover {
-  transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.16);     /* 1. Brightens the glass background */
   border-color: rgba(255, 255, 255, 0.25);   /* 2. Sharpens the border highlight */
   transform: translateY(-2px);               /* 3. Lifts the button slightly up */
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); /* 4. Expands the shadow for depth */
-  cursor: pointer;   
+  cursor: pointer;
 }
 
 .settings-overlay,
@@ -1199,11 +1155,12 @@ avatar-status {
   color: #fff;
   font-weight: 600;
 }
+
 /* ---- Avatar setup (first-visit onboarding overlay) ---- */
 .avatar-setup {
   position: fixed;
   inset: 0;
-  z-index: 1300; 
+  z-index: 1300;
   display: none;
   align-items: center;
   justify-content: center;
