@@ -124,7 +124,7 @@ avatar-status {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 12px; /* distance from the bottom of the avatar stage — safe to tune */
+  bottom: 2px;
   margin: 0 auto;
   width: fit-content;
   max-width: 90%;
@@ -282,7 +282,7 @@ avatar-status {
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.24s ease, transform 0.24s ease;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
 }
 .avatar-caption.visible {
