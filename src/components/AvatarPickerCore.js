@@ -1,6 +1,4 @@
 // Reusable picker/persona/language logic shared between <avatar-settings>
-// and <avatar-setup>. Operates only on DOM nodes handed to it plus an
-// `emit` callback, so each host component can use its own markup/layout.
 import { getStoredUiLanguage } from "./i18n.js";
 import {
   RESPONSE_LANGUAGES,
@@ -16,12 +14,7 @@ export class AvatarPickerCore {
    *   profileName, profileBio, personaSaveBtn, personaResetBtn
    * @param {(name: string, detail?: object) => void} emit
    * @param {string} instanceId
-   * @param {{emitOnSelect?: boolean}} [options] - emitOnSelect (default true)
-   *   controls whether clicking a grid card immediately emits
-   *   'select-avatar' (AvatarSettings' existing live-switch behavior) or
-   *   only updates local state, leaving the host to emit later
-   *   (AvatarSetup: defer the actual GLB load until "Continue").
-   */
+   * @param {{emitOnSelect?: boolean}} [options] - emitOnSelect (default true)  */
   constructor(nodes, emit, instanceId = "default", options = {}) {
     this.nodes = nodes;
     this.emit = emit;

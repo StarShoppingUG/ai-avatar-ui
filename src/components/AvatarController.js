@@ -8,6 +8,8 @@ import {
   setPersonaOverride,
   resetPersonaOverride,
   hasPersonaOverride,
+  setPersonaOverridesCache,
+  getPersonaOverridesCache,
 } from "../avatar/AvatarSources.js";
 import { emitAvatarEvent } from "./events.js";
 import {
@@ -58,85 +60,20 @@ class AvatarController {
     this.emitAvailableAvatars();
     // Safe to emit early — emitCurrentProfile() only reads AvatarSources
     // data for this.currentAvatarId, it doesn't depend on model.loadAvatar()
-    // having run. Lets <avatar-setup> (and <avatar-settings>) prefill the
-    // persona name/bio before the gate below even resolves.
     this.emitCurrentProfile();
 
     await this.loadVoiceCatalog();
 
-    const setupWasShown = await this.waitForSetupIfNeeded();
+const loadedOk = await this.selectAvatar(this.currentAvatarId, { persist: false });
 
-    // If setup ran, its own 'Continue' already fired avatar:select-avatar,
-    // which the listener in registerListeners() already routed through
-    // selectAvatar() — calling it again here would reload the same GLB
-    // a second time for nothing. Only call it directly on the normal
-    // (no-setup-shown) path, exactly as before.
-    let loadedOk = true;
-    if (!setupWasShown) {
-      // Restoring the persisted (or fallback) avatar on startup — never
-      // save here, see the comment in selectAvatar() for why.
-      loadedOk = await this.selectAvatar(this.currentAvatarId, { persist: false });
-    }
+this.refreshHistory();
 
-    this.refreshHistory();
-
-    // If setup ran, selectAvatar() already fired its own accurate status
-    // (and load-error) via the 'select-avatar' event listener — don't
-    // stomp it here. If setup didn't run, only announce "Ready" when the
-    // initial load actually succeeded; a failure already emitted its own
-    // red status + load-error via selectAvatar() above.
-    if (setupWasShown || loadedOk) {
-      this.emitStatus("Ready", "green");
-    }
-    this.emit("app:ready");
+if (loadedOk) {
+  this.emitStatus("Ready", "green");
+}
+this.emit("app:ready");
   }
 
-  /** Finds the <avatar-setup> element for this instance, if any, matching
-   * the same instance-attribute convention every other avatar-* element
-   * uses (attribute value, defaulting to "default"). */
-  findSetupElement() {
-    const candidates = document.querySelectorAll("avatar-setup");
-    for (const el of candidates) {
-      const id = el.getAttribute("instance") || "default";
-      if (id === this.instanceId) return el;
-    }
-    return null;
-  }
-
-  /**
-   * Gates the initial selectAvatar() call behind a blocking <avatar-setup>
-   * step, if one is present for this instance and applicable:
-   *   - mode="always" (opt-in attribute): show every load.
-   *   - default / mode="first-visit": show only when loadPersistedSettings()
-   *     found no saved last_avatar for this user.
-   * No <avatar-setup> element for this instance, or not applicable this
-   * load -> resolves immediately, zero behavior change from before.
-   * Resolves to true iff the step was actually shown (so init() knows
-   * whether selectAvatar() still needs to be called itself, or already
-   * happened via the setup step's own select-avatar emit).
-   */
-  async waitForSetupIfNeeded() {
-    const setupEl = this.findSetupElement();
-    if (!setupEl) return false;
-
-    const mode = setupEl.getAttribute("mode") || "first-visit";
-    const shouldShow = mode === "always" || this._isFirstVisit;
-    if (!shouldShow) return false;
-
-    await customElements.whenDefined("avatar-setup");
-
-    await new Promise((resolve) => {
-      const onComplete = (event) => {
-        if (event.detail?.instance !== this.instanceId) return;
-        window.removeEventListener("avatar:setup-complete", onComplete);
-        resolve();
-      };
-      window.addEventListener("avatar:setup-complete", onComplete);
-      setupEl.show();
-    });
-
-    return true;
-  }
 
   // Pulls this user's saved settings (last avatar, reply language, UI
   // language) from the backend and applies them before the first avatar is
@@ -144,7 +81,6 @@ class AvatarController {
   // priority over that DOM-default fallback. Backend unreachable/offline
   // just means falling back to the existing in-code defaults for this run;
   // it's not fatal.
-// NEW:
   async loadPersistedSettings() {
     // Default to "not first visit" so that if the backend is unreachable,
     // we fail toward skipping the setup gate rather than blocking every
@@ -174,6 +110,14 @@ class AvatarController {
         if (settings.ui_language && UI_LANGUAGES.includes(settings.ui_language)) {
           applyUiLanguageToApp(settings.ui_language, this.instanceId);
         }
+        // Populate the in-memory overrides cache from the backend's
+        // authoritative copy BEFORE emitAvailableAvatars()/emitCurrentProfile()
+        // run in init() — those read getAvatar()/getAllAvatars(), which read
+        // this cache synchronously. If this weren't set first, the very
+        // first render after a page load would show base (non-overridden)
+        // persona/name data for one frame, until some later action happened
+        // to refresh it.
+        setPersonaOverridesCache(settings.persona_overrides || {});
         return; // success — no retry needed
       } catch (error) {
         const isLastAttempt = attempt === 1;
@@ -250,6 +194,14 @@ window.addEventListener("avatar:edit-persona", async (event) => {
       }
 
   setPersonaOverride(targetId, fields, this.instanceId);
+      // Send the FULL overrides cache, not just this one entry — /settings
+      // stores persona_overrides as a full replace, not a merge (see
+      // save_settings() on the backend). Sending only {targetId: fields}
+      // would silently wipe every other avatar's saved override on this
+      // instance the next time anyone saves anything.
+      this.brain
+        .saveSettings({ persona_overrides: getPersonaOverridesCache() })
+        .catch(() => {});
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
       this.emitAvailableAvatars();
     });
@@ -258,6 +210,9 @@ window.addEventListener("avatar:edit-persona", async (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const targetId = event.detail?.avatarId || this.currentAvatarId;
       resetPersonaOverride(targetId, this.instanceId);
+      this.brain
+        .saveSettings({ persona_overrides: getPersonaOverridesCache() })
+        .catch(() => {});
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
       this.emitAvailableAvatars();
     });
@@ -269,6 +224,12 @@ window.addEventListener("avatar:edit-persona", async (event) => {
         this.brain
           .saveSettings({ response_language: language })
           .catch(() => {});
+        // Rebroadcast so every <avatar-settings> panel watching this
+        // instance (there can now be more than one, e.g. a settings-only
+        // page open alongside the display page) updates its own dropdown
+        // to reflect the change — avatar-select/persona-edit already do
+        // this; response-language was the one handler that didn't.
+        this.emitAvailableAvatars();
       }
     });
 
@@ -372,13 +333,7 @@ window.addEventListener("avatar:edit-persona", async (event) => {
       );
     }
     this.currentAvatarId = avatar.id;
-    // persist=false is used for init()'s own restore-from-backend call —
-    // saving there would re-write whatever currentAvatarId happens to be
-    // (including the constructor's DEFAULT_AVATAR_ID fallback if
-    // loadPersistedSettings() failed/timed out) back over the user's real
-    // saved preference, silently corrupting it. Only an actual user
-    // selection (via the avatar:select-avatar event listener, or the
-    // avatar-setup Continue flow) should ever write to the backend.
+
     if (persist) {
       this.brain.saveSettings({ last_avatar: avatar.id }).catch(() => {});
     }
@@ -420,6 +375,7 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
       personaJa: avatar.personaJa || avatar.persona,
       voiceEn: avatar.voiceEn,
       voiceJa: avatar.voiceJa,
+      thumbnail: avatar.thumbnail,
       isCustomPersona: hasPersonaOverride(avatar.id, this.instanceId),
     });
   }

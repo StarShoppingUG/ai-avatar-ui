@@ -6,6 +6,7 @@ import {
   UI_LANGUAGES,
 } from "./constants.js";
 import { AvatarPickerCore } from "./AvatarPickerCore.js";
+import { AvatarSettingsController } from "./AvatarSettingsController.js";
 class AvatarSettings extends HTMLElement {
   connectedCallback() {
     this.classList.add("avatar-settings");
@@ -25,6 +26,7 @@ class AvatarSettings extends HTMLElement {
           </div>
           <div class="settings-body">
           <div class="profile-card">
+              <img class="profile-thumb" alt="" hidden />
               <div class="persona-edit-actions">
                 <button type="button" class="persona-save" title="Save" aria-label="Save">
                   <svg xmlns="http://w3.org" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -138,6 +140,8 @@ class AvatarSettings extends HTMLElement {
       if (event.detail?.instance !== this.instanceId) return;
       this.core.updateProfile(event.detail);
     });
+
+    this.initPersistence();
   }
 
   // Every emission from this component goes through here so the instance
@@ -157,6 +161,7 @@ class AvatarSettings extends HTMLElement {
       ".response-language-select",
     );
     this.uiLanguageSelect = this.querySelector(".ui-language-select");
+    this.profileThumb = this.querySelector(".profile-thumb");
     this.profileName = this.querySelector(".profile-name");
     this.profileBio = this.querySelector(".profile-bio");
     this.personaSaveBtn = this.querySelector(".persona-save");
@@ -318,17 +323,20 @@ class AvatarSettings extends HTMLElement {
       .join("");
   }
 
-// NEW:
-  updateAvatarOpenButton() {
-    if (!this.avatarOpenName) return;
-    const avatar = this.core.avatars.find((a) => a.id === this.core.currentAvatarId);
-    this.avatarOpenName.textContent = avatar?.name || "Choose avatar";
-    if (this.avatarOpenThumb) {
-      this.avatarOpenThumb.textContent = avatar
-        ? (avatar.name || "?").trim().slice(0, 2).toUpperCase()
-        : "";
+updateAvatarOpenButton() {
+  if (!this.avatarOpenName) return;
+  const avatar = this.core.avatars.find((a) => a.id === this.core.currentAvatarId);
+  this.avatarOpenName.textContent = avatar?.name || "Choose avatar";
+
+  if (this.avatarOpenThumb) {
+    if (avatar?.thumbnail) {
+      this.avatarOpenThumb.innerHTML = `<img src="${avatar.thumbnail}" alt="" class="avatar-open-thumb-img" />`;
+    } else {
+      const initials = (avatar?.name || "?").trim().slice(0, 2).toUpperCase();
+      this.avatarOpenThumb.textContent = avatar ? initials : "";
     }
   }
+}
 
   // preferredLanguage, when given, is the controller's actual current
   // (possibly backend-restored) responseLanguage. Without it, rebuilding
@@ -454,6 +462,21 @@ updateProfile(detail = {}) {
     if (this.personaResetBtn) {
       this.personaResetBtn.disabled = !this.currentProfileDetail.isCustomPersona;
     }
+    this.updateProfileThumbnail(this.currentProfileDetail.thumbnail);
+  }
+
+  /** Renders the current avatar's thumbnail on the profile card, if one is
+   * configured. Falls back to hiding the image node entirely (rather than
+   * showing a broken-image icon) when no thumbnail exists for this avatar. */
+  updateProfileThumbnail(thumbnailUrl) {
+    if (!this.profileThumb) return;
+    if (thumbnailUrl) {
+      this.profileThumb.src = thumbnailUrl;
+      this.profileThumb.hidden = false;
+    } else {
+      this.profileThumb.hidden = true;
+      this.profileThumb.removeAttribute('src');
+    }
   }
 
   /**
@@ -561,6 +584,38 @@ updateProfile(detail = {}) {
     this.emit("clear-chat-history");
     this.closeConfirmReset();
     this.closeChatHistory();
+  }
+  /**
+   * Ensures SOMETHING is persisting settings for this instance. If an
+   * <avatar-model> for the same instance exists on the page, AvatarController
+   * (created inside AvatarModel.connectedCallback()) already handles
+   * persistence — this component just listens, as it always has. If no such
+   * element exists, this is a settings-only page/card (no 3D avatar), so
+   * spin up the lightweight, Three.js-free AvatarSettingsController instead
+   * — otherwise every change made here would silently go nowhere.
+   */
+  async initPersistence() {
+    try {
+      await customElements.whenDefined("avatar-model");
+      const hasMatchingModel = Array.from(
+        document.querySelectorAll("avatar-model"),
+      ).some((el) => (el.getAttribute("instance") || "default") === this.instanceId);
+
+      if (hasMatchingModel) return;
+
+      this.settingsController = new AvatarSettingsController({
+        instanceId: this.instanceId,
+        backend: this.getAttribute("backend") || undefined,
+        appId: this.getAttribute("app-id") || undefined,
+        userId: this.getAttribute("user-id") || undefined,
+      });
+      await this.settingsController.init();
+    } catch (error) {
+      console.error(
+        `[avatar-settings] initPersistence failed for instance "${this.instanceId}":`,
+        error,
+      );
+    }
   }
 }
 

@@ -11,12 +11,12 @@ export function resolveAssetUrl(path) {
   return new URL(String(path).replace(/^\//, ''), ASSET_BASE_URL).href;
 }
 
-// Avatar .glb models are hosted separately (Netlify), NOT under this app's
-// own origin like other public/ assets — they're too large to ship in this
-// repo (see AvatarSources.js). Kept as its own constant/function rather than
-// folding into resolveAssetUrl() above, since that one is anchored to
-// wherever THIS script is served from, which is a different origin entirely
-// from where the models live.
+// Resolver for 2D avatar thumbnail previews
+export function resolveThumbnailUrl(filename) {
+  return resolveAssetUrl(`/assets/thumbnails/${filename}`);
+}
+
+// Avatar .glb models are hosted separately (Netlify)
 export const AVATAR_CDN_BASE = 'https://lexx-ai-avatars.netlify.app/';
 
 export function resolveAvatarUrl(filename) {

@@ -1,4 +1,5 @@
-import { resolveAvatarUrl } from '../components/constants.js';
+
+import { resolveAvatarUrl, resolveThumbnailUrl } from '../components/constants.js';
 
 export const AVATAR_DATA = [
 {
@@ -331,6 +332,7 @@ export const AVATAR_DATA = [
 export const AVATAR_SOURCES = AVATAR_DATA.map((avatar) => ({
   ...avatar,
   file: resolveAvatarUrl(`${avatar.id}.glb`),
+  thumbnail: resolveThumbnailUrl(`${avatar.id}.webp`),
 }));
 
 export const DEFAULT_AVATAR_ID = AVATAR_SOURCES[0].id;
@@ -340,53 +342,62 @@ export function getAvatar(avatarId, instanceId = 'default') {
     AVATAR_SOURCES.find((avatar) => avatar.id === avatarId) ||
     AVATAR_SOURCES[0]
   );
-  const override = readPersonaOverrides()[overrideKey(instanceId, base.id)];
+  const override = overridesCache[overrideKey(instanceId, base.id)];
   return override ? { ...base, ...override } : base;
 }
-
-const PERSONA_OVERRIDE_KEY = 'avatar_persona_overrides';
 
 // Overrides are keyed by "instanceId::avatarId" — the same avatar loaded in
 // two different <avatar-model instance="..."> groups gets fully independent
 // persona edits, never shared between them.
+//
+// Source of truth is now the BACKEND (see CharacterBrain's persona_overrides
+// field on /settings), not localStorage — so an edit made on a config page
+// is visible to every end user on the main page, not just the browser that
+// made the edit. This module just holds an in-memory cache of whatever the
+// controller last fetched/saved, so getAvatar()/getAllAvatars() can stay
+// synchronous. The controller (AvatarController or a settings-only
+// controller) is responsible for calling setPersonaOverridesCache() right
+// after CharacterBrain.getSettings() resolves, and again after any local
+// edit succeeds.
+let overridesCache = {};
+
 function overrideKey(instanceId, avatarId) {
   return `${instanceId}::${avatarId}`;
 }
 
-function readPersonaOverrides() {
-  try {
-    const raw = localStorage.getItem(PERSONA_OVERRIDE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (error) {
-    // Private browsing / storage disabled — no overrides available this session.
-    return {};
-  }
+/** Called by a controller once it has fetched persona_overrides from the
+ * backend (GET /settings). Replaces the entire cache. */
+export function setPersonaOverridesCache(overrides = {}) {
+  // Merge, don't replace — multiple instances can be active in the same
+  // page session (confirmed: multi-instance settings-only pages are a
+  // supported case), and each instance's cache key is already namespaced
+  // "instanceId::avatarId", so a merge keeps them all coexisting safely.
+  overridesCache = { ...overridesCache, ...(overrides || {}) };
 }
 
-function writePersonaOverrides(overrides) {
-  try {
-    localStorage.setItem(PERSONA_OVERRIDE_KEY, JSON.stringify(overrides));
-  } catch (error) {
-    // Storage disabled — edit just won't persist across reloads.
-  }
+/** Called by a controller to read the current cache back out, e.g. right
+ * before calling saveSettings({ persona_overrides }) so it sends the full
+ * updated object rather than just the one changed entry. */
+export function getPersonaOverridesCache() {
+  return overridesCache;
 }
 
 export function hasPersonaOverride(avatarId, instanceId = 'default') {
-  return Boolean(readPersonaOverrides()[overrideKey(instanceId, avatarId)]);
+  return Boolean(overridesCache[overrideKey(instanceId, avatarId)]);
 }
 
-/** @param {{persona?: string, personaJa?: string}} fields — only pass what changed */
+/** @param {{persona?: string, personaJa?: string, name?: string}} fields — only pass what changed.
+ * Updates the in-memory cache immediately (so the UI reflects it right away);
+ * the caller is still responsible for persisting overridesCache to the
+ * backend via CharacterBrain.saveSettings(). */
 export function setPersonaOverride(avatarId, fields = {}, instanceId = 'default') {
-  const overrides = readPersonaOverrides();
   const key = overrideKey(instanceId, avatarId);
-  overrides[key] = { ...(overrides[key] || {}), ...fields };
-  writePersonaOverrides(overrides);
+  overridesCache[key] = { ...(overridesCache[key] || {}), ...fields };
 }
 
 export function resetPersonaOverride(avatarId, instanceId = 'default') {
-  const overrides = readPersonaOverrides();
-  delete overrides[overrideKey(instanceId, avatarId)];
-  writePersonaOverrides(overrides);
+  const key = overrideKey(instanceId, avatarId);
+  delete overridesCache[key];
 }
 export function applyAvatarOverrides(avatars, overridesByAvatarId = {}) {
   return avatars.map((avatar) => {
@@ -401,9 +412,8 @@ export function applyAvatarOverrides(avatars, overridesByAvatarId = {}) {
  * once. Used to populate the "choose avatar" grid/picker so it reflects
  * live edits instead of the static AVATAR_DATA defaults. */
 export function getAllAvatars(instanceId = 'default') {
-  const overrides = readPersonaOverrides();
   return AVATAR_SOURCES.map((avatar) => {
-    const override = overrides[overrideKey(instanceId, avatar.id)];
+    const override = overridesCache[overrideKey(instanceId, avatar.id)];
     return override ? { ...avatar, ...override } : avatar;
   });
 }
