@@ -58,49 +58,40 @@ import { useEffect } from 'react';
 
 export default function AvatarWidget() {
   useEffect(() => {
-    // Dynamically load the Web Component script when the component mounts
     const script = document.createElement('script');
     script.type = 'module';
     script.src = 'https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js';
     script.async = true;
     document.body.appendChild(script);
+
     return () => {
-      // Clean up the script when the component unmounts
       document.body.removeChild(script);
     };
   }, []);
 
   return (
     <div className="ai-avatar-shell">
-      <div className="avatar-stage">
+      
+      <div className="avatar-stage" style={{ position: 'relative', width: '100%', height: '400px' }}>
         <avatar-model
           backend="backend-url"
           app-id="your-app-id"
           avatar-scale="1"
           avatar-vertical-offset="-1.25"
-        />
-        <avatar-captions />
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+        ></avatar-model>
+        <avatar-captions></avatar-captions>
       </div>
-      <avatar-status />
-      <avatar-settings />
-      {/* Optional: point avatar-inputs at your own chat UI instead of its
-          built-in textarea/buttons. Each attribute is independent — supply
-          one, two, or all three; omit any of them to keep the built-in
-          default for that piece. See Custom Input Elements below. */}
-      {/*<div className="my-existing-chat-bar">
-        <textarea id="my-chat-input" />
-        <button id="my-mic-btn">🎤</button>
-        <button id="my-send-btn">Send</button>
-      </div>
-      <avatar-inputs
-        text-input="#my-chat-input"
-        send-button="#my-send-btn"
-        mic-button="#my-mic-btn"
-      />*/}
-      <avatar-inputs />
+
+      <avatar-status></avatar-status>
+      <avatar-settings></avatar-settings>
+      <avatar-inputs></avatar-inputs>
+      
     </div>
   );
 }
+
+
 ```
 
 
