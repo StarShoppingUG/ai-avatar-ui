@@ -147,12 +147,22 @@ class AvatarSettings extends HTMLElement {
   }
 
   disconnectedCallback() {
+    // Invalidate any initPersistence() call still awaiting something (e.g.
+    // customElements.whenDefined() or a /settings fetch) so that if it
+    // resolves after we've already disconnected, it tears itself back down
+    // instead of creating (and immediately orphaning) a fresh
+    // AvatarSettingsController — see initPersistence() below. This is the
+    // race that let stale controllers pile up under fast client-side
+    // navigation even with destroy() now implemented.
+    this._persistenceInitId = (this._persistenceInitId || 0) + 1;
+
     window.removeEventListener("avatar:available-avatars", this._onAvailableAvatars);
     window.removeEventListener("avatar:update-profile", this._onUpdateProfile);
     window.removeEventListener("avatar:open-chat-history", this._onOpenChatHistory);
     window.removeEventListener("avatar:chat-history", this._onChatHistory);
     this.core?.destroy?.();
     this.settingsController?.destroy?.();
+    this.settingsController = null;
   }
 
   // Every emission from this component goes through here so the instance
@@ -606,8 +616,23 @@ updateProfile(detail = {}) {
    * element exists, this is a settings-only page/card (no 3D avatar), so
    * spin up the lightweight, Three.js-free AvatarSettingsController instead
    * — otherwise every change made here would silently go nowhere.
+   *
+   * Two async gaps get raced against a fast unmount here: the
+   * customElements.whenDefined() await, and the network round trip inside
+   * controller.init(). On a hard page reload these gaps are irrelevant —
+   * nothing can unmount before the page even exists. Under Next.js
+   * client-side navigation they're very reachable: a user can click through
+   * to another route before either resolves. Without the isConnected +
+   * _persistenceInitId guards below, that produces a controller that's
+   * created, started, and then immediately orphaned — alive, still
+   * listening on `window`, with no disconnectedCallback ever coming along
+   * to destroy() it (it already ran before the controller existed). That
+   * orphan is exactly the kind of stale listener described in
+   * AvatarSettingsController's class doc comment.
    */
   async initPersistence() {
+    this._persistenceInitId = (this._persistenceInitId || 0) + 1;
+    const initId = this._persistenceInitId;
     try {
       await customElements.whenDefined("avatar-model");
       const hasMatchingModel = Array.from(
@@ -616,13 +641,28 @@ updateProfile(detail = {}) {
 
       if (hasMatchingModel) return;
 
-      this.settingsController = new AvatarSettingsController({
+      // Bail if disconnected (or superseded by a newer initPersistence
+      // call) while awaiting whenDefined() above.
+      if (!this.isConnected || initId !== this._persistenceInitId) return;
+
+      const controller = new AvatarSettingsController({
         instanceId: this.instanceId,
         backend: this.getAttribute("backend") || undefined,
         appId: this.getAttribute("app-id") || undefined,
         userId: this.getAttribute("user-id") || undefined,
       });
-      await this.settingsController.init();
+      this.settingsController = controller;
+      await controller.init();
+
+      // Also possible we got disconnected during init()'s own network
+      // round trip — if so, tear the controller straight back down instead
+      // of leaving it registered on window with nothing left to clean it up.
+      if (!this.isConnected || initId !== this._persistenceInitId) {
+        controller.destroy();
+        if (this.settingsController === controller) {
+          this.settingsController = null;
+        }
+      }
     } catch (error) {
       console.error(
         `[avatar-settings] initPersistence failed for instance "${this.instanceId}":`,

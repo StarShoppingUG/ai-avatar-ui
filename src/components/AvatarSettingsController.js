@@ -28,6 +28,21 @@ import { applyUiLanguageToApp } from "./i18n.js";
  *
  * Voice and scale are intentionally NOT handled here — they aren't exposed
  * on the settings panel today, and remain in-memory-only on AvatarController.
+ *
+ * IMPORTANT: registerListeners() attaches to `window`, not to this
+ * instance's element — so this controller MUST be torn down via destroy()
+ * whenever the owning <avatar-settings> disconnects (e.g. on every
+ * client-side route change in a Next.js app). Without a working destroy(),
+ * these listeners outlive the page that created them: a stale controller
+ * from an unmounted settings-only page keeps reacting to
+ * avatar:select-avatar / avatar:edit-persona / etc. for its instanceId
+ * indefinitely, including on later pages that happen to reuse the same
+ * instance id (e.g. navigating into the exact character/instance that card
+ * represented) — each stale controller independently re-saves settings
+ * from its own frozen, increasingly-stale local state. That's the likely
+ * cause of "last avatar keeps resetting after client-side navigation, but
+ * is fine after a full reload" — a reload clears all module state, so no
+ * stale controller exists to interfere; SPA navigation does not.
  */
 export class AvatarSettingsController {
   constructor({ backend = BACKEND, instanceId = "default", appId, userId } = {}) {
@@ -35,6 +50,18 @@ export class AvatarSettingsController {
     this.currentAvatarId = DEFAULT_AVATAR_ID;
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
     this.brain = new CharacterBrain(backend, instanceId, { appId, userId });
+    this._destroyed = false;
+
+    // Bind once and keep the references around — addEventListener and
+    // removeEventListener only cancel each other out when given the exact
+    // same function reference, so the old inline-arrow-function version of
+    // registerListeners() could never actually be unregistered.
+    this._onSelectAvatar = this._onSelectAvatar.bind(this);
+    this._onRequestCurrentProfile = this._onRequestCurrentProfile.bind(this);
+    this._onSetResponseLanguage = this._onSetResponseLanguage.bind(this);
+    this._onSetUiLanguage = this._onSetUiLanguage.bind(this);
+    this._onEditPersona = this._onEditPersona.bind(this);
+    this._onResetPersona = this._onResetPersona.bind(this);
   }
 
   emit(name, detail = {}) {
@@ -48,8 +75,11 @@ export class AvatarSettingsController {
     // — absorbs a sleeping backend's first failed request instead of
     // flashing default state for one load.
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (this._destroyed) return; // torn down mid-init — stop touching state
       try {
         const settings = await this.brain.getSettings();
+        if (this._destroyed) return; // disconnected while the fetch was in flight
+
         if (settings.last_avatar) {
           this.currentAvatarId = settings.last_avatar;
         }
@@ -73,94 +103,141 @@ export class AvatarSettingsController {
         );
         if (!isLastAttempt) {
           await new Promise((resolve) => setTimeout(resolve, 2500));
+          if (this._destroyed) return;
         }
       }
     }
 
+    if (this._destroyed) return;
     this.emitAvailableAvatars();
     this.emitCurrentProfile();
   }
 
   registerListeners() {
-    window.addEventListener("avatar:select-avatar", (event) => {
-      if (event.detail?.instance !== this.instanceId) return;
-      const avatarId = event.detail?.avatarId;
-      if (!avatarId) return;
-      const avatar = lookupAvatar(avatarId, this.instanceId);
-      if (!avatar) return;
-      this.currentAvatarId = avatar.id;
-      this.brain.saveSettings({ last_avatar: avatar.id }).catch(() => {});
-      this.emitCurrentProfile();
-    });
+    window.addEventListener("avatar:select-avatar", this._onSelectAvatar);
+    window.addEventListener(
+      "avatar:request-current-profile",
+      this._onRequestCurrentProfile,
+    );
+    window.addEventListener(
+      "avatar:set-response-language",
+      this._onSetResponseLanguage,
+    );
+    window.addEventListener("avatar:set-ui-language", this._onSetUiLanguage);
+    window.addEventListener("avatar:edit-persona", this._onEditPersona);
+    window.addEventListener("avatar:reset-persona", this._onResetPersona);
+  }
 
-    window.addEventListener("avatar:request-current-profile", (event) => {
-      if (event.detail?.instance !== this.instanceId) return;
-      this.emitCurrentProfile();
-    });
+  /** Removes every window listener registered in registerListeners() and
+   * marks this controller inert. Safe to call more than once. Must be
+   * called by the owning <avatar-settings> element's disconnectedCallback
+   * — see the class doc comment above for why this matters in Next.js. */
+  destroy() {
+    if (this._destroyed) return;
+    this._destroyed = true;
+    window.removeEventListener("avatar:select-avatar", this._onSelectAvatar);
+    window.removeEventListener(
+      "avatar:request-current-profile",
+      this._onRequestCurrentProfile,
+    );
+    window.removeEventListener(
+      "avatar:set-response-language",
+      this._onSetResponseLanguage,
+    );
+    window.removeEventListener(
+      "avatar:set-ui-language",
+      this._onSetUiLanguage,
+    );
+    window.removeEventListener("avatar:edit-persona", this._onEditPersona);
+    window.removeEventListener("avatar:reset-persona", this._onResetPersona);
+  }
 
-window.addEventListener("avatar:set-response-language", (event) => {
-      if (event.detail?.instance !== this.instanceId) return;
-      const language = event.detail?.language;
-      if (!RESPONSE_LANGUAGES.includes(language)) return;
-      this.responseLanguage = language;
-      this.brain.saveSettings({ response_language: language }).catch(() => {});
-      this.emitAvailableAvatars();
-    });
+  _onSelectAvatar(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    const avatarId = event.detail?.avatarId;
+    if (!avatarId) return;
+    const avatar = lookupAvatar(avatarId, this.instanceId);
+    if (!avatar) return;
+    this.currentAvatarId = avatar.id;
+    this.brain.saveSettings({ last_avatar: avatar.id }).catch(() => {});
+    this.emitCurrentProfile();
+  }
 
-    window.addEventListener("avatar:set-ui-language", (event) => {
-      if (event.detail?.instance !== this.instanceId) return;
-      const language = event.detail?.language;
-      if (!UI_LANGUAGES.includes(language)) return;
-      applyUiLanguageToApp(language, this.instanceId);
-      this.emit("request-current-profile");
-      this.brain.saveSettings({ ui_language: language }).catch(() => {});
-    });
+  _onRequestCurrentProfile(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    this.emitCurrentProfile();
+  }
 
-    window.addEventListener("avatar:edit-persona", async (event) => {
-      if (event.detail?.instance !== this.instanceId) return;
-      const { avatarId, text, language, name } = event.detail || {};
-      const targetId = avatarId || this.currentAvatarId;
-      if (text === undefined && name === undefined) return;
+  _onSetResponseLanguage(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    const language = event.detail?.language;
+    if (!RESPONSE_LANGUAGES.includes(language)) return;
+    this.responseLanguage = language;
+    this.brain.saveSettings({ response_language: language }).catch(() => {});
+    this.emitAvailableAvatars();
+  }
 
-      const fields = {};
-      if (name !== undefined) fields.name = name;
+  _onSetUiLanguage(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    const language = event.detail?.language;
+    if (!UI_LANGUAGES.includes(language)) return;
+    applyUiLanguageToApp(language, this.instanceId);
+    this.emit("request-current-profile");
+    this.brain.saveSettings({ ui_language: language }).catch(() => {});
+  }
 
-      if (text !== undefined) {
-        const isJa = language === "ja";
-        fields[isJa ? "personaJa" : "persona"] = text;
-        try {
-          const targetLang = isJa ? "en" : "ja";
-          const result = await this.brain.translate(text, targetLang);
-          const translated = result?.text ?? "";
-          if (translated) fields[isJa ? "persona" : "personaJa"] = translated;
-        } catch (error) {
-          console.error(
-            "[avatar-settings-persona] translate failed, saving single language only:",
-            error,
-          );
-        }
+  async _onEditPersona(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    const { avatarId, text, language, name } = event.detail || {};
+    const targetId = avatarId || this.currentAvatarId;
+    if (text === undefined && name === undefined) return;
+
+    const fields = {};
+    if (name !== undefined) fields.name = name;
+
+    if (text !== undefined) {
+      const isJa = language === "ja";
+      fields[isJa ? "personaJa" : "persona"] = text;
+      try {
+        const targetLang = isJa ? "en" : "ja";
+        const result = await this.brain.translate(text, targetLang);
+        if (this._destroyed) return; // disconnected while translate() was in flight
+        const translated = result?.text ?? "";
+        if (translated) fields[isJa ? "persona" : "personaJa"] = translated;
+      } catch (error) {
+        console.error(
+          "[avatar-settings-persona] translate failed, saving single language only:",
+          error,
+        );
       }
+    }
 
-      setPersonaOverride(targetId, fields, this.instanceId);
-      // Full cache, not just this entry — /settings stores persona_overrides
-      // as a full replace on the backend, same reasoning as AvatarController.
-      this.brain
-        .saveSettings({ persona_overrides: getPersonaOverridesCache() })
-        .catch(() => {});
-      if (targetId === this.currentAvatarId) this.emitCurrentProfile();
-      this.emitAvailableAvatars();
-    });
+    if (this._destroyed) return;
+    setPersonaOverride(targetId, fields, this.instanceId);
+    // Full cache, not just this entry — /settings stores persona_overrides
+    // as a full replace on the backend, same reasoning as AvatarController.
+    this.brain
+      .saveSettings({ persona_overrides: getPersonaOverridesCache() })
+      .catch(() => {});
+    if (targetId === this.currentAvatarId) this.emitCurrentProfile();
+    this.emitAvailableAvatars();
+  }
 
-    window.addEventListener("avatar:reset-persona", (event) => {
-      if (event.detail?.instance !== this.instanceId) return;
-      const targetId = event.detail?.avatarId || this.currentAvatarId;
-      resetPersonaOverride(targetId, this.instanceId);
-      this.brain
-        .saveSettings({ persona_overrides: getPersonaOverridesCache() })
-        .catch(() => {});
-      if (targetId === this.currentAvatarId) this.emitCurrentProfile();
-      this.emitAvailableAvatars();
-    });
+  _onResetPersona(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    const targetId = event.detail?.avatarId || this.currentAvatarId;
+    resetPersonaOverride(targetId, this.instanceId);
+    this.brain
+      .saveSettings({ persona_overrides: getPersonaOverridesCache() })
+      .catch(() => {});
+    if (targetId === this.currentAvatarId) this.emitCurrentProfile();
+    this.emitAvailableAvatars();
   }
 
   emitAvailableAvatars() {
