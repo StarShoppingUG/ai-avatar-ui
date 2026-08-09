@@ -3,15 +3,32 @@ connectedCallback() {
     this.classList.add('avatar-captions');
     this.instanceId = this.getAttribute('instance') || 'default';
     this.innerHTML = `<div class="avatar-caption" aria-live="polite"></div>`;
-    window.addEventListener('avatar:show-caption', (event) => {
+    this._onShowCaption = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.showCaption(event.detail?.text, event.detail?.durationMs, event.detail?.captionId);
-    });
-    window.addEventListener('avatar:hide-caption', (event) => {
+    };
+    this._onHideCaption = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.hideCaption(event.detail?.captionId);
-    });
+    };
+    window.addEventListener('avatar:show-caption', this._onShowCaption);
+    window.addEventListener('avatar:hide-caption', this._onHideCaption);
   }
+  disconnectedCallback() {
+    if (this._onShowCaption) {
+      window.removeEventListener('avatar:show-caption', this._onShowCaption);
+      this._onShowCaption = null;
+    }
+    if (this._onHideCaption) {
+      window.removeEventListener('avatar:hide-caption', this._onHideCaption);
+      this._onHideCaption = null;
+    }
+    if (this._captionHideTimer) {
+      clearTimeout(this._captionHideTimer);
+      this._captionHideTimer = null;
+    }
+  }
+
 
   showCaption(text, durationMs = 0, captionId = null) {
     const caption = this.querySelector('.avatar-caption');

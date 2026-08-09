@@ -76,7 +76,7 @@ static get observedAttributes() {
     // which of that app's end-users this widget instance belongs to — see
     // CharacterBrain.js. Observed so a host app setting these slightly
     // after connect (e.g. after an async auth check) still takes effect.
-    return ['avatar-width', 'avatar-height', 'backend', 'app-id', 'user-id', 'avatar-scale', 'avatar-vertical-offset'];
+    return ['avatar-width', 'avatar-height', 'backend', 'app-id', 'user-id', 'avatar-scale', 'avatar-vertical-offset', 'instance'];
   }
 
 attributeChangedCallback(name, oldValue, newValue) {
@@ -90,6 +90,10 @@ attributeChangedCallback(name, oldValue, newValue) {
     }
     if (name === 'backend' && newValue) {
       this.backend = newValue;
+      this._recreateBrain();
+    }
+    if (name === 'instance' && newValue) {
+      this.instanceId = newValue;
       this._recreateBrain();
     }
     if (name === 'app-id' || name === 'user-id') {
@@ -119,6 +123,7 @@ attributeChangedCallback(name, oldValue, newValue) {
 connectedCallback() {
     if (this._connected) return;
     this._connected = true;
+    this.instanceId = this.getAttribute('instance') || 'default';
     this.classList.add('avatar-model');
     this.render();
     this.canvas = this.querySelector('.avatar-canvas');
@@ -130,6 +135,31 @@ connectedCallback() {
     this.bindResize();
     this.controller = new AvatarController(this);
     this.controller.init();
+  }
+
+  disconnectedCallback() {
+    this._connected = false;
+    this._disposed = true;
+
+    this.controller?.destroy();
+
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+    if (this._onWindowResize) {
+      window.removeEventListener('resize', this._onWindowResize);
+      this._onWindowResize = null;
+    }
+
+    if (this.renderer) {
+      this.renderer.dispose();
+      this.renderer.forceContextLoss();
+      this.renderer = null;
+    }
+
+    this.orbitControls?.dispose();
+    this.animationManager?.dispose();
   }
 
 render() {
@@ -214,7 +244,8 @@ render() {
       this._resizeObserver = new ResizeObserver(() => this.resize());
       this._resizeObserver.observe(this);
     }
-    window.addEventListener('resize', () => this.resize());
+    this._onWindowResize = () => this.resize();
+    window.addEventListener('resize', this._onWindowResize);
   }
 
   showLoadingOverlay() {
@@ -357,6 +388,7 @@ async attachEngines(avatarModel, personaName) {
     this.cameraFraming?.resize();
   }
   animate() {
+    if (this._disposed) return;
     requestAnimationFrame(() => this.animate());
     const delta = this.clock.getDelta();
     

@@ -38,6 +38,16 @@ class AvatarController {
     this.audioQueue = [];
     this.isAudioPlaying = false;
     this._historyRequestId = 0;
+    this._listeners = [];
+  }
+
+  /** Registers a window listener and remembers it so destroy() can remove
+   * it later — every registerListeners() call must go through this instead
+   * of calling window.addEventListener directly, or it can't be cleaned up
+   * when this controller is torn down on disconnect. */
+  _on(eventName, handler) {
+    window.addEventListener(eventName, handler);
+    this._listeners.push({ eventName, handler });
   }
 
   // Every emission from this controller goes through here so the instance
@@ -62,9 +72,7 @@ class AvatarController {
     // data for this.currentAvatarId, it doesn't depend on model.loadAvatar()
     this.emitCurrentProfile();
 
-    await this.loadVoiceCatalog();
-
-const loadedOk = await this.selectAvatar(this.currentAvatarId, { persist: false });
+    const loadedOk = await this.selectAvatar(this.currentAvatarId, { persist: false });
 
 this.refreshHistory();
 
@@ -146,7 +154,7 @@ this.emit("app:ready");
       this.clearChatHistory();
     });
 
-    window.addEventListener("avatar:ask", (event) => {
+    this._on("avatar:ask", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const text = String(event.detail?.text || "").trim();
       if (text) this.handleAsk(text);
@@ -292,16 +300,13 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     });
   }
 
-  async loadVoiceCatalog() {
-    try {
-      const { catalog } = await this.brain.voices();
-
-      this.voiceCatalog = catalog || { en: [], ja: [] };
-      this.emit("available-voices", { catalog: this.voiceCatalog });
-    } catch (error) {
-      this.emit("available-voices", { catalog: this.voiceCatalog });
-    }
+  destroy() {
+    this._listeners.forEach(({ eventName, handler }) => {
+      window.removeEventListener(eventName, handler);
+    });
+    this._listeners = [];
   }
+
 
   syncInitialResponseLanguage() {
     const settings = document.querySelector("avatar-settings");

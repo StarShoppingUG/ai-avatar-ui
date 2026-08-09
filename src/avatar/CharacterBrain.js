@@ -108,12 +108,6 @@ async translate(text, target = 'ja') {
         if (!res.ok) throw new Error(`Backend /translate failed (${res.status})`);
         return res.json();
     }
-    /** { catalog: { en: [{name,label}], ja: [{name,label}] }, default_en, default_ja } */
-    async voices() {
-        const res = await fetch(`${this.backend}/voices`);
-        if (!res.ok) throw new Error(`Backend /voices failed (${res.status})`);
-        return res.json();
-    }
 
     /** { history: [{role, text|content, text_en?, text_ja?, time, character_name?}] } —
      * the backend's authoritative conversation log. The frontend renders from

@@ -73,31 +73,48 @@ this.isTranscribing = false;
     this.isLoadingAvatar = false;
     this._typingActive = false;
 
-    window.addEventListener('avatar:set-response-language', (event) => {
+    this._onSetResponseLanguage = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const language = event.detail?.language;
       this.recognitionLanguage = language === 'ja' ? 'ja-JP' : 'en-US';
-    });
-    window.addEventListener('avatar:speaking', (event) => {
+    };
+    this._onSpeaking = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.isSpeaking = Boolean(event.detail?.active);
       this.refreshInputAvailability();
-    });
-    window.addEventListener('avatar:thinking', (event) => {
+    };
+    this._onThinking = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.isThinking = Boolean(event.detail?.active);
       this.refreshInputAvailability();
-    });
-window.addEventListener('avatar:avatar-loading', (event) => {
+    };
+    this._onAvatarLoading = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.isLoadingAvatar = Boolean(event.detail?.active);
       this.refreshInputAvailability();
-    });
-    window.addEventListener('avatar:load-error', (event) => {
+    };
+    this._onLoadError = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.hasLoadError = Boolean(event.detail?.active);
       this.refreshInputAvailability();
-    });
+    };
+
+    window.addEventListener('avatar:set-response-language', this._onSetResponseLanguage);
+    window.addEventListener('avatar:speaking', this._onSpeaking);
+    window.addEventListener('avatar:thinking', this._onThinking);
+    window.addEventListener('avatar:avatar-loading', this._onAvatarLoading);
+    window.addEventListener('avatar:load-error', this._onLoadError);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('avatar:set-response-language', this._onSetResponseLanguage);
+    window.removeEventListener('avatar:speaking', this._onSpeaking);
+    window.removeEventListener('avatar:thinking', this._onThinking);
+    window.removeEventListener('avatar:avatar-loading', this._onAvatarLoading);
+    window.removeEventListener('avatar:load-error', this._onLoadError);
+
+    if (this.isListening) this.stopListening(false);
+    if (this.mediaRecorder) this.cleanupRecording();
   }
 
 // Every emission from this component goes through here so the instance

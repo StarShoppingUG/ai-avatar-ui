@@ -132,16 +132,27 @@ class AvatarSettings extends HTMLElement {
     this.core.populateResponseLanguages();
     this.core.populateUiLanguages();
     this.applyUiLanguage(getStoredUiLanguage(this.instanceId));
-    window.addEventListener("avatar:available-avatars", (event) => {
+    this._onAvailableAvatars = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.populateAvatars(event.detail);
-    });
-    window.addEventListener("avatar:update-profile", (event) => {
+    };
+    this._onUpdateProfile = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.core.updateProfile(event.detail);
-    });
+    };
+    window.addEventListener("avatar:available-avatars", this._onAvailableAvatars);
+    window.addEventListener("avatar:update-profile", this._onUpdateProfile);
 
     this.initPersistence();
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("avatar:available-avatars", this._onAvailableAvatars);
+    window.removeEventListener("avatar:update-profile", this._onUpdateProfile);
+    window.removeEventListener("avatar:open-chat-history", this._onOpenChatHistory);
+    window.removeEventListener("avatar:chat-history", this._onChatHistory);
+    this.core?.destroy?.();
+    this.settingsController?.destroy?.();
   }
 
   // Every emission from this component goes through here so the instance
@@ -228,18 +239,20 @@ class AvatarSettings extends HTMLElement {
       }
     });
 
-    window.addEventListener("avatar:open-chat-history", (event) => {
+    this._onOpenChatHistory = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.openChatHistory();
-    });
-    window.addEventListener("avatar:chat-history", (event) => {
+    };
+    this._onChatHistory = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.renderHistory(
         event.detail?.history || [],
         event.detail?.responseLanguage,
         event.detail?.avatarName,
       );
-    });
+    };
+    window.addEventListener("avatar:open-chat-history", this._onOpenChatHistory);
+    window.addEventListener("avatar:chat-history", this._onChatHistory);
   }
 
   openSettings() {

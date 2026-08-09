@@ -11,13 +11,21 @@ connectedCallback() {
         <span class="status-text">Initializing</span>
       </div>
     `;
-    window.addEventListener('avatar:update-status', (event) => {
+    this._onUpdateStatus = (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.updateStatus(event.detail);
-    });
+    };
+    window.addEventListener('avatar:update-status', this._onUpdateStatus);
     this.applyUiLanguage(getStoredUiLanguage(this.instanceId));
 
     if (getLastStatusDetail(this.instanceId)) this.updateStatus(getLastStatusDetail(this.instanceId));
+  }
+
+  disconnectedCallback() {
+    if (this._onUpdateStatus) {
+      window.removeEventListener('avatar:update-status', this._onUpdateStatus);
+      this._onUpdateStatus = null;
+    }
   }
 
   applyUiLanguage(language = 'en') {
