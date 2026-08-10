@@ -145,7 +145,6 @@ avatar-model {
   display: block;
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 4;
   max-height: 100%;
   overflow: hidden;
 }
