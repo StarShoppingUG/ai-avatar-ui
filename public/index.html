@@ -6,30 +6,32 @@
   <title>AI Avatar UI — Web Components</title>
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-    }
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  /* Fallback for iOS Safari to fill the screen correctly */
+  height: -webkit-fill-available;
+}
 
-    /* This demo page opts into a themed look — the library itself (index.css)
-       ships with .ai-avatar-shell fully transparent by default. */
-    body {
-      box-sizing: border-box;
-      min-height: 100vh;
-      min-height: 100svh;
-      padding: 12px 2px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
-    }
+body {
+  box-sizing: border-box;
+  /* Swap svh for dvh (Dynamic Viewport Height) */
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 12px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
+}
 
-    .ai-avatar-shell {
-      background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
-      width: 100%;
-      height: 96vh;
-      height: 96svh;
-    }
+.ai-avatar-shell {
+  background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
+  width: 100%;
+  /* Use calc to perfectly account for the 24px top/bottom padding on the body */
+  height: calc(100vh - 24px);
+  height: calc(100dvh - 24px);
+}
   </style>
 </head>
 <body>
