@@ -148,12 +148,12 @@ const COMBINED_EXPRESSIONS = {
         // Maintained the highly visible parted lip structure from before, 
         // as this breaks the neutral posture instantly without altering the eyes.
         jawOpen: 0.5,              // Visible, clean gap between the lips
-        mouthPressLeft: 0.3,       
-        mouthPressRight: 0.4,
-        mouthFrownLeft: 0.3,       // Soft organic slack on the left corner
+        mouthPressLeft: 0.2,       
+        mouthPressRight: 0.15,
+        mouthFrownLeft: 0.1,       // Soft organic slack on the left corner
         mouthFrownRight: 0.1,
-        mouthStretchLeft: 0.3,     
-        mouthStretchRight: 0.2,
+        mouthStretchLeft: 0.2,     
+        mouthStretchRight: 0.15,
         mouthSmileRight: 0.2,      // Tiny micro-lift keeps the resting face serene
 
         // --- 5. SYSTEM WIPES ---

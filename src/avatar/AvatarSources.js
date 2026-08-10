@@ -121,7 +121,7 @@ export const AVATAR_DATA = [
       "A dynamic event coordinator for the Experience Event Division. She organizes cross-functional corporate summits, manages logistical timelines, and oversees vendor engagement pipelines.",
     personaJa:
       "エクスペリエンス・イベント・ディビジョンのダイナミックなイベントコーディネーター。部門横断的な企業サミットを組織し、物流のタイムラインを管理し、ベンダーのエンゲージメントパイプラインを監督します。",
-    voiceEn: "en-NG-EzinneNeural",
+    voiceEn: "en-US-JennyNeural", 
     voiceJa: "ja-JP-NanamiNeural"
   },
 {
@@ -157,7 +157,7 @@ export const AVATAR_DATA = [
   },
 {
     id: "cool_orange_lady",
-    name: "Nneka", // Distinctive West African female name matching her tech profile
+    name: "Nneka",
     persona:
       "A futuristic cybernetic interface designer for the Advanced Automation Lab. She designs biomechanical heads-up displays, establishes unified neural-sync iconography, and updates high-tech corporate identity frameworks for automated robotic platforms.",
     personaJa:

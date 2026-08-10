@@ -99,7 +99,7 @@ export class AnimationManager {
                 // in earlier Blender testing) — see
                 // _applyRootRotationCorrection for how/why.
                 if (name === 'talk') {
-                    filtered = this._applyRootRotationCorrection(filtered, 33);
+                    filtered = this._applyRootRotationCorrection(filtered, 1);
                 }
                 filtered.name = name;
                 
