@@ -1,45 +1,49 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Avatar UI — Web Components</title>
   <style>
-    html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  /* Fallback for iOS Safari to fill the screen correctly */
-  height: -webkit-fill-available;
-}
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      /* Fallback for iOS Safari to fill the screen correctly */
+      height: -webkit-fill-available;
+    }
 
-body {
-  box-sizing: border-box;
-  /* Swap svh for dvh (Dynamic Viewport Height) */
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 12px 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
-}
+    body {
+      box-sizing: border-box;
+      /* Swap svh for dvh (Dynamic Viewport Height) */
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 12px 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
+    }
 
-.ai-avatar-shell {
-  background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
-  width: 100%;
-  /* Use calc to perfectly account for the 24px top/bottom padding on the body */
-  height: calc(100vh - 24px);
-  height: calc(100dvh - 24px);
-}
+    .ai-avatar-shell {
+      background: radial-gradient(ellipse at top, #1e1b4b 0%, #02040a 100%);
+      width: 100%;
+      /* Use calc to perfectly account for the 24px top/bottom padding on the body */
+      height: calc(100vh - 24px);
+      height: calc(100dvh - 24px);
+    }
   </style>
 </head>
+
 <body>
   <div class="ai-avatar-shell">
-<avatar-model backend="https://ai-avatar-backend-production-15d3.up.railway.app" avatar-scale="1" avatar-vertical-offset="-1.25"></avatar-model>
-<div class="avatar-stage">
-  <avatar-captions></avatar-captions>
-</div>
+    <avatar-model backend="https://ai-avatar-backend-production-15d3.up.railway.app" avatar-scale="1"
+      avatar-vertical-offset="-1.25"></avatar-model>
+    <div class="avatar-stage">
+      <avatar-captions></avatar-captions>
+    </div>
     <avatar-status></avatar-status>
     <avatar-settings></avatar-settings>
     <avatar-inputs></avatar-inputs>
@@ -47,4 +51,5 @@ body {
 
   <script type="module" src="/ai-avatar-ui.js"></script>
 </body>
+
 </html>

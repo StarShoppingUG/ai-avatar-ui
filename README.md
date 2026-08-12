@@ -126,7 +126,7 @@ in a browser for a live demo and usage notes.
 - **3D Lip-Sync** — Powered by `three.js`, driving real-time facial morphs and animations from server-generated visemes.
 - **Multiple Avatars** — Switch between characters at runtime; each keeps its own persona, voice, and chat history.
 - **Persistent Chat History & Settings** — Reply language, interface language, and your last-selected avatar are remembered across visits, with no account or login required (see [Persistence & Identity](#persistence--identity)).
-- **Multi-Tenant Ready** — Third-party apps embedding this widget can pass their own `app-id` (and optionally `user-id`) so each integrator's users stay fully isolated from every other integrator's, with no login system required on either side (see [Persistence & Identity](#persistence--identity)).
+- **Multi-Tenant Ready** — Third-party apps embedding this widget can pass their own `app-id` (and optionally `user-id`) so each integrator's users stay fully isolated from every other integrator's, with no login system required on either side. Settings can additionally be scoped per-app instead of per-user via `settings-scope="app"`, while chat history always stays per-user (see [Persistence & Identity](#persistence--identity)).
 - **Offline Fallback** — If the backend drops, the avatar keeps moving safely with a neutral expression and an "offline" animation instead of freezing or crashing.
 - **Load-Failure Recovery** — A failed avatar load (e.g. an unstable connection while fetching the GLB) shows a clear retry prompt over the 3D area instead of silently leaving it blank, and disables chat input until the retry succeeds — see [Load Error Handling](#load-error-handling).
 - **Auto-Timezone Awareness** — Detects the browser's timezone automatically so the AI is grounded in the real current date and time.
@@ -346,6 +346,14 @@ with matching `app-id`/`user-id` — `instance` is part of the scoping key for
 persona overrides specifically, so it must match exactly for edits made on
 the settings-only page to show up on the display page.
 
+`settings-scope` (see [Settings Scope: Per-App vs Per-User](#settings-scope-per-app-vs-per-user))
+works the same way on `<avatar-settings>` as it does on `<avatar-model>` —
+set it on whichever element is actually persisting for a given page (the
+settings-only page's `<avatar-settings>`, or the display page's
+`<avatar-model>` when both are present together). Keep it consistent
+across both pages for the same `instance`/`app-id`, same as `app-id` and
+`user-id` themselves.
+
 ## Backend
 
 This UI is **backend-agnostic** — every request goes through plain
@@ -384,8 +392,12 @@ element, e.g.:
 
 Any backend you plug in needs to implement these endpoints. Every request
 carries an `X-User-Id` header, and — for multi-tenant integrations — an
-`X-App-Id` header. See [Persistence & Identity](#persistence--identity)
-for what these are for.
+`X-App-Id` header. `/settings` requests (and `/ask`, for its saved
+reply-language lookup) also carry an `X-Settings-Scope` header —
+`"app"` or `"user"` (default when absent) — see
+[Settings Scope: Per-App vs Per-User](#settings-scope-per-app-vs-per-user).
+See [Persistence & Identity](#persistence--identity) for what these
+headers are for.
 
 | Endpoint | Method | Request | Response |
 |---|---|---|---|
@@ -415,6 +427,7 @@ Notes for implementers:
   factored into isolation, not `X-User-Id` alone, or two different
   integrators' users with the same `user-id` will collide.
 - `persona_overrides` is an object keyed by `"<instance>::<avatarId>"` strings (e.g. `"slot-1::female_ug": { "name": "...", "persona": "...", "personaJa": "..." }`), constructed and read entirely client-side — the backend just needs to store and return whatever object it's given. The frontend always sends its **complete current object** on every persona edit, so this field must be stored as a full replace, not merged server-side, or edits to one avatar will silently wipe out previously saved edits to others.
+- `/settings` (GET and POST) is the only pair of endpoints affected by `X-Settings-Scope`. When it's `"app"`, the reference backend reads/writes a settings row keyed by `app_id` alone (shared across every `user_id` under that app); otherwise it uses the same compound `"<app-id>::<user-id>"` key as chat history. Chat history itself (`/history`, `/reset`) never reads this header — it's always keyed per end-user regardless of settings scope.
 
 ## Persistence & Identity
 
@@ -462,6 +475,48 @@ Clearing browser storage (or switching browsers/devices) only affects
 identities that were relying on the `localStorage`-generated fallback —
 an integrator passing their own `user-id` is unaffected, since nothing
 about their identity lives in this browser at all.
+
+### Settings Scope: Per-App vs Per-User
+
+Chat history is always scoped per end-user (`app-id` + `user-id`) — that
+never changes. **Settings** (`last_avatar`, `ui_language`,
+`response_language`, `persona_overrides`), however, can be scoped one of
+two ways via the `settings-scope` attribute on `<avatar-model>` (or
+`<avatar-settings>`, for [settings-only pages](#settings-only-pages--cross-page-configuration)):
+
+- **`user` (default, unchanged)** — every end-user of an app gets their
+  own settings, isolated the same way chat history is. This is the
+  original per-browser/UUID behavior and what the live Vercel demo relies
+  on. Omitting `settings-scope` entirely — as every other example in this
+  README does — keeps this default.
+- **`app`** — every end-user of that `app-id` shares one settings row.
+  Useful when you want a single configured persona/language/avatar for
+  everyone embedding your integration, regardless of who's currently
+  looking at it (e.g. a company-wide kiosk or a Next.js app that wants one
+  consistent avatar identity site-wide).
+
+```html
+<!-- Default — settings isolated per end-user, same as chat history -->
+<avatar-model backend="..." app-id="acme-corp"></avatar-model>
+
+<!-- Settings shared across every user of this app-id; chat history
+     still isolated per end-user as usual -->
+<avatar-model
+  backend="..."
+  app-id="my-nextjs-app"
+  settings-scope="app"
+></avatar-model>
+```
+
+Internally this sends an `X-Settings-Scope: app` header (see
+[API Contract](#api-contract)); leaving it unset sends no header, or
+`"user"`, and the reference backend treats both identically. There's
+currently no server-side enforcement pinning a given `app-id` to one
+scope — it's trusted per-request the same way `X-App-Id`/`X-User-Id`
+already are, so a client that sends `settings-scope="app"` on one page
+and omits it on another will read/write two different settings rows for
+the same `app-id`. Keep the attribute consistent across every page/element
+using the same `app-id` if you want `app` scoping to behave predictably.
 
 ---
 

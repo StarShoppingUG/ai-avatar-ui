@@ -32,6 +32,7 @@ class AvatarController {
     this.brain = new CharacterBrain(model.backend || BACKEND, this.instanceId, {
   appId: model.getAttribute('app-id') || undefined,
   userId: model.getAttribute('user-id') || undefined,
+  settingsScope: model.getAttribute('settings-scope') || undefined,
 });
     this.voiceCatalog = { en: [], ja: [] };
     this.lastAudio = null;

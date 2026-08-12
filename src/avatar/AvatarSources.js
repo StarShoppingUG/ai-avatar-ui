@@ -51,7 +51,7 @@ export const AVATAR_DATA = [
       "A brave and resourceful wizard guide for the Magic Academy Team. He helps users solve complex problems, navigate magical environments, and discover hidden features.",
     personaJa:
       "魔法アカデミーチームの勇敢で機知に富んだ魔法使いのガイド。ユーザーが複雑な問題を解決し、魔法の環境をナビゲートし、隠された機能を発見するのを助けます。",
-    voiceEn: "en-GB-RyanNeural",
+    voiceEn: "en-GB-ThomasNeural",
     voiceJa: "ja-JP-KeitaNeural",
   },
     {
@@ -71,8 +71,6 @@ export const AVATAR_DATA = [
     voiceJa: "ja-JP-KeitaNeural"
 }
 ,
-  
-
   {
     id: "afro_lady",
     name: "Amara",
@@ -90,7 +88,7 @@ export const AVATAR_DATA = [
       "A passionate community manager for the Global Network Hub. She engages with active online user bases, coordinates digital town halls, and amplifies user feedback.",
     personaJa:
       "グローバルネットワークハブの情熱的なコミュニティマネージャー。アクティブなオンラインユーザー層と交流し、デジタルタウンホールをコーディネートし、ユーザーの声を拡大します。",
-    voiceEn: "en-US-JennyNeural",
+    voiceEn: "en-GB-LibbyNeural",
     voiceJa: "ja-JP-NanamiNeural",
   },
   {
@@ -100,7 +98,7 @@ export const AVATAR_DATA = [
       "An empathetic user researcher for the Experience Laboratory. She conducts behavioral field interviews, synthesizes usability metrics, and maps user journey frameworks.",
     personaJa:
       "エクスペリエンス・ラボラトリーの共感力のあるユーザーリサーチャー。行動フィールドインタビューを実施し、ユーザビリティメトリクスを統合し、ユーザージャーニーの枠組みをマッピングします。",
-    voiceEn: "en-US-JennyNeural",
+    voiceEn: "en-US-AvaNeural",
     voiceJa: "ja-JP-NanamiNeural",
   },
   {
@@ -110,7 +108,7 @@ export const AVATAR_DATA = [
       "A detail-oriented quality analyst for the Testing Command. He automates end-to-end integration workflows, isolates functional software regressions, and certifies stable code releases.",
     personaJa:
       "テスティングコマンドの詳細重視の品質アナリスト。エンドツーエンドの統合ワークフローを自動化し、機能的なソフトウェアの回帰を特定し、安定したコードリリースを認証します。",
-    voiceEn: "en-NG-AbeoNeural",
+    voiceEn: "en-ZA-LukeNeural",
     voiceJa: "ja-JP-KeitaNeural",
 },
 
@@ -121,7 +119,7 @@ export const AVATAR_DATA = [
       "A dynamic event coordinator for the Experience Event Division. She organizes cross-functional corporate summits, manages logistical timelines, and oversees vendor engagement pipelines.",
     personaJa:
       "エクスペリエンス・イベント・ディビジョンのダイナミックなイベントコーディネーター。部門横断的な企業サミットを組織し、物流のタイムラインを管理し、ベンダーのエンゲージメントパイプラインを監督します。",
-    voiceEn: "en-US-JennyNeural", 
+    voiceEn: "en-US-EmmaNeural", 
     voiceJa: "ja-JP-NanamiNeural"
   },
 {
@@ -131,8 +129,8 @@ export const AVATAR_DATA = [
       "A sharp cybersecurity analyst for the Digital Defense Center. He monitors live network traffic, hardens server configuration baselines, and mitigates potential threat vectors.",
     personaJa:
       "デジタルディフェンスセンターの鋭いサイバーセキュリティアナリスト。ライブのネットワークトラフィックを監視し、サーバー構成のベースラインを強化し、潜在的な脅威ベクトルを軽減します。",
-    voiceEn: "en-US-BrianNeural", // Crisp, natural standard US male voice
-    voiceJa: "ja-JP-KeitaNeural", // Universally available baseline Japanese male voice
+    voiceEn: "en-US-AndrewMultilingualNeural", 
+    voiceJa: "ja-JP-KeitaNeural",
 },
 
   {
@@ -142,7 +140,7 @@ export const AVATAR_DATA = [
       "A global localization expert for the Internationalization Unit. She adapts digital text artifacts across cultural regions, validates translated assets, and verifies regional compatibility.",
     personaJa:
       "インターナショナライゼーションユニットのグローバルなローカライズ専門家。文化的地域にわたってデジタルテキストアーティファクトを適応させ、翻訳されたアセットを検証し、地域の互換性を確認します。",
-    voiceEn: "en-US-JennyNeural",
+    voiceEn: "en-US-AriaNeural",
     voiceJa: "ja-JP-NanamiNeural",
   },
   {
@@ -166,8 +164,6 @@ export const AVATAR_DATA = [
     voiceJa: "ja-JP-NanamiNeural", 
 },
 
-
-
     {
     id: "cyborg",
     name: "Noah",
@@ -175,7 +171,7 @@ export const AVATAR_DATA = [
       "A devops automation specialist for the Delivery Pipeline Section. He maintains robust continuous integration environments, handles package artifact distribution, and optimizes build speed metrics.",
     personaJa:
       "デリバリーパイプラインセクションのDevOps自動化スペシャリスト。堅牢な継続的インテグレーション環境を維持し、パッケージアーティファクトの配布を処理し、ビルド速度のメトリクスを最適化します。",
-    voiceEn: "en-US-BrianNeural", // Casual, high-energy, and crisp US male voice
+    voiceEn: "en-NZ-MitchellNeural",
     voiceJa: "ja-JP-KeitaNeural",
   },
 {
@@ -207,7 +203,7 @@ export const AVATAR_DATA = [
       "A database administrator for the Infrastructure Storage Hub. He monitors system query execution times, configures table clustering parameters, and applies operational schema patches.",
     personaJa:
       "インフラストレージハブのデータベース管理者。システムのクエリ実行時間を監視し、テーブルクラスタリングパラメータを構成し、運用のスキーマパッチを適用します。",
-    voiceEn: "en-US-ChristopherNeural", // Authoritative, formal, and structured US male voice
+    voiceEn: "en-IE-ConnorNeural",
     voiceJa: "ja-JP-KeitaNeural",
 },
 
@@ -218,7 +214,7 @@ export const AVATAR_DATA = [
       "A corporate training coordinator for the Learning Development Team. She schedules mandatory technical training programs, creates interactive workshop outlines, and measures session success rates.",
     personaJa:
       "ラーニングデベロップメントチームの企業トレーニングコーディネーター。必須の技術トレーニングプログラムをスケジュールし、インタラクティブなワークショップのアウトラインを作成し、セッションの成功率を測定します。",
-    voiceEn: "en-US-JennyNeural",
+    voiceEn: "en-US-AvaNeural",
     voiceJa: "ja-JP-NanamiNeural",
   },
 {
@@ -239,7 +235,7 @@ export const AVATAR_DATA = [
       "An elite shinobi shadow-agent operating from the hidden sectors of the Leadership Support Hub. Master of the silent step and sensory deception, she slips through fortress perimeters under the cover of smoke screens, intercepts sealed intelligence scrolls, and executes flawless extractions before the alarm can sound.",
     personaJa:
       "リーダーシップサポートハブの隠されたセクターから暗躍する、一流の忍（しのび）の影工作員。無音の歩法と感覚欺瞞の達人であり、煙幕に紛れて要塞の境界をすり抜け、封印された機密の巻物を奪取し、警報が鳴る前に完璧な離脱を実行します。",
-    voiceEn: "en-US-JennyNeural", 
+    voiceEn: "en-GB-SoniaNeural", 
     voiceJa: "ja-JP-NanamiNeural", 
 }
 ,
@@ -250,7 +246,7 @@ export const AVATAR_DATA = [
       "A growth marketing specialist for the Performance Traffic Squad. She optimizes programmatic user acquisition ads, runs product conversion multi-tests, and handles marketing channel distribution budgets.",
     personaJa:
       "パフォーマンストラフィックスクワッドのグロースマーケティングスペシャリスト。プログラムによるユーザー獲得広告を最適化し、プロダクトコンバージョンのマルチテストを実行し、マーケティングチャネルの配信予算を処理します。",
-    voiceEn: "en-US-JennyNeural",
+    voiceEn: "en-US-AvaMultilingualNeural",
     voiceJa: "ja-JP-NanamiNeural",
   },
   
@@ -261,7 +257,7 @@ export const AVATAR_DATA = [
       "A creative fashion and apparel designer for the Interaction Framework Group. She sketches intricate garment prototypes, curates seasonal textile palettes, and establishes unified digital design pattern models for luxury clothing lines.",
     personaJa:
       "インタラクションフレームワークグループのクリエイティブなファッション・アパレルデザイナー。複雑な衣服のプロトタイプをスケッチし、シーズンのテキスタイルパレットをキュレートし、高級衣料品ラインの統一されたデジタルデザインパターンモデルを確立します。",
-    voiceEn: "en-US-AvaNeural", 
+    voiceEn: "en-ZA-LeahNeural", 
     voiceJa: "ja-JP-NanamiNeural", 
 }
 ,
@@ -283,7 +279,7 @@ export const AVATAR_DATA = [
       "A public relations representative for the Global Media Relations Office. She writes external corporate statements, organizes regular media briefings, and updates public information documents.",
     personaJa:
       "グローバルメディアリレーションズオフィスの広報担当者。外部向けの企業声明を執筆し、定期的なメディアブリーフィングを組織し、公開情報ドキュメントを更新します。",
-    voiceEn: "en-US-JennyNeural",
+    voiceEn: "en-IN-NeerjaNeural",
     voiceJa: "ja-JP-NanamiNeural",
   },
     {
@@ -312,7 +308,7 @@ export const AVATAR_DATA = [
   "name": "Luna",
   "persona": "A sharp quantum-mesh full-stack developer for the Interactive Applications Team. She builds adaptive holographic interface components, experiments with emerging neural-link frameworks, and optimizes micro-layer data stream rendering performance across the deep net.",
   "personaJa": "インタラクティブ・アプリケーション・チームの鋭い量子メッシュ・フルスタック開発者。適応型ホログラフィック・インターフェース・コンポーネントを構築し、最新のニューラルリンク・フレームワークを実験し、ディープネット全体のマイクロレイヤー・データストリーム・レンダリング・パフォーマンスを最適化します。",
-  "voiceEn": "en-US-JennyNeural",
+  "voiceEn": "en-IE-EmilyNeural",
   "voiceJa": "ja-JP-NanamiNeural"
 }
 
@@ -323,7 +319,7 @@ export const AVATAR_DATA = [
   "name": "Victoria",
   "persona": "A polished corporate venture specialist for the Global Strategy Group. She evaluates international market expansion risks, structures multi-million dollar equity investments, and advises executive boards on sustainable growth assets.",
   "personaJa": "グローバル・ストラテジー・グループの洗練されたコーポレート・ベンチャー・スペシャリスト。国際的な市場拡大リスクを評価し、数百万ドル規模の株式投資を構造化し、持続可能な成長資産について取締役会に助言します。",
-  "voiceEn": "en-US-JennyNeural",
+  "voiceEn": "en-IN-NeerjaNeural",
   "voiceJa": "ja-JP-NanamiNeural"
 }
 

@@ -650,6 +650,7 @@ updateProfile(detail = {}) {
         backend: this.getAttribute("backend") || undefined,
         appId: this.getAttribute("app-id") || undefined,
         userId: this.getAttribute("user-id") || undefined,
+        settingsScope: this.getAttribute("settings-scope") || undefined,
       });
       this.settingsController = controller;
       await controller.init();

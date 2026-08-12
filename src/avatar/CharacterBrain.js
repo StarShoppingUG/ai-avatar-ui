@@ -29,6 +29,13 @@ export class CharacterBrain {
         // so two <avatar-model instance="..."> groups on the same page
         // don't silently share one identity.
         this.userId = options.userId || CharacterBrain.getOrCreateUserId(instanceId);
+
+        // 'app' = every user of this app-id shares one settings row
+        // (last_avatar, languages, persona edits) — new, opt-in.
+        // Default ('user') = today's per-browser/UUID isolation, unchanged.
+        // Chat history is ALWAYS per-user regardless of this setting —
+        // it only affects /settings.
+        this.settingsScope = options.settingsScope === 'app' ? 'app' : 'user';
     }
 
     static resolveAppId(providedAppId) {
@@ -59,12 +66,17 @@ export class CharacterBrain {
 
     /** Headers for a JSON request body (POST /ask, /settings, etc). */
     _jsonHeaders() {
-        return { 'Content-Type': 'application/json', 'X-App-Id': this.appId, 'X-User-Id': this.userId };
+        return {
+            'Content-Type': 'application/json',
+            'X-App-Id': this.appId,
+            'X-User-Id': this.userId,
+            'X-Settings-Scope': this.settingsScope,
+        };
     }
 
     /** Headers for a GET/no-body request (history, settings). */
     _headers() {
-        return { 'X-App-Id': this.appId, 'X-User-Id': this.userId };
+        return { 'X-App-Id': this.appId, 'X-User-Id': this.userId, 'X-Settings-Scope': this.settingsScope };
     }
 
 
@@ -186,8 +198,8 @@ async translate(text, target = 'ja') {
             reply: `(offline) I heard: "${text}". Start the backend to enable the AI.`,
             translated_reply: '',
             romanization: '',
-            expression: 'neutral', // FIXED: Clears out active thinking eyebrows
-            animation: 'offline',  // FIXED: Tells AnimationManager to play Offline.fbx
+            expression: 'neutral', 
+            animation: 'offline',
             voice: 'en-US',
             primary: 'en',
             audio_url_en: '', audio_url_ja: '', audio_url: '',
