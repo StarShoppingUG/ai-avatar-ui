@@ -36,6 +36,17 @@ export class CharacterBrain {
         // Chat history is ALWAYS per-user regardless of this setting —
         // it only affects /settings.
         this.settingsScope = options.settingsScope === 'app' ? 'app' : 'user';
+
+        // Second scoping dimension alongside app-id, for settingsScope
+        // 'app' usage only — lets one app-id share settings per some
+        // sub-grouping the integrator defines (e.g. a "character" =
+        // scenario + avatar combo) instead of every scope='app' user of
+        // that app-id sharing a single row. Opt-in, defaults to '' (same
+        // default the backend's AppSettings.settings_group column has),
+        // so existing scope='app' usage that never sets this keeps
+        // landing on the same row as before. No effect at all under the
+        // default 'user' scope.
+        this.settingsGroup = options.settingsGroup || '';
     }
 
     static resolveAppId(providedAppId) {
@@ -71,12 +82,18 @@ export class CharacterBrain {
             'X-App-Id': this.appId,
             'X-User-Id': this.userId,
             'X-Settings-Scope': this.settingsScope,
+            'X-Settings-Group': this.settingsGroup,
         };
     }
 
     /** Headers for a GET/no-body request (history, settings). */
     _headers() {
-        return { 'X-App-Id': this.appId, 'X-User-Id': this.userId, 'X-Settings-Scope': this.settingsScope };
+        return {
+            'X-App-Id': this.appId,
+            'X-User-Id': this.userId,
+            'X-Settings-Scope': this.settingsScope,
+            'X-Settings-Group': this.settingsGroup,
+        };
     }
 
 

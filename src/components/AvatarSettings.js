@@ -651,6 +651,7 @@ updateProfile(detail = {}) {
         appId: this.getAttribute("app-id") || undefined,
         userId: this.getAttribute("user-id") || undefined,
         settingsScope: this.getAttribute("settings-scope") || undefined,
+        settingsGroup: this.getAttribute("settings-group") || undefined,
       });
       this.settingsController = controller;
       await controller.init();

@@ -33,6 +33,7 @@ class AvatarController {
   appId: model.getAttribute('app-id') || undefined,
   userId: model.getAttribute('user-id') || undefined,
   settingsScope: model.getAttribute('settings-scope') || undefined,
+  settingsGroup: model.getAttribute('settings-group') || undefined,
 });
     this.voiceCatalog = { en: [], ja: [] };
     this.lastAudio = null;

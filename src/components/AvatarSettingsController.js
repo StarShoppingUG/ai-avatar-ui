@@ -45,11 +45,11 @@ import { applyUiLanguageToApp } from "./i18n.js";
  * stale controller exists to interfere; SPA navigation does not.
  */
 export class AvatarSettingsController {
-  constructor({ backend = BACKEND, instanceId = "default", appId, userId, settingsScope } = {}) {
+  constructor({ backend = BACKEND, instanceId = "default", appId, userId, settingsScope, settingsGroup } = {}) {
     this.instanceId = instanceId;
     this.currentAvatarId = DEFAULT_AVATAR_ID;
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
-    this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope });
+    this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope, settingsGroup });
     this._destroyed = false;
 
     // Bind once and keep the references around — addEventListener and
