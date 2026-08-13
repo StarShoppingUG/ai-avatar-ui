@@ -308,8 +308,6 @@ avatar-model .avatar-retry-btn:active {
   border-radius: 28px;
   padding: 6px 6px 6px 18px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 .chat-composer:focus-within {
