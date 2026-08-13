@@ -157,8 +157,8 @@ async translate(text, target = 'ja') {
 
     /** { ui_language, response_language, last_avatar } — this user's saved settings,
      * or defaults if they've never saved any. */
-    async getSettings() {
-        const res = await fetch(`${this.backend}/settings`, { headers: this._headers() });
+    async getSettings({ signal } = {}) {
+        const res = await fetch(`${this.backend}/settings`, { headers: this._headers(), signal });
         if (!res.ok) throw new Error(`Backend /settings (get) failed (${res.status})`);
         return res.json();
     }

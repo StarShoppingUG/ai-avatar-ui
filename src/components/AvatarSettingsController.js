@@ -51,6 +51,7 @@ export class AvatarSettingsController {
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
     this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope, settingsGroup });
     this._destroyed = false;
+    this._abortController = new AbortController();
 
     // Bind once and keep the references around — addEventListener and
     // removeEventListener only cancel each other out when given the exact
@@ -77,7 +78,7 @@ export class AvatarSettingsController {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       if (this._destroyed) return; // torn down mid-init — stop touching state
       try {
-        const settings = await this.brain.getSettings();
+        const settings = await this.brain.getSettings({ signal: this._abortController.signal });
         if (this._destroyed) return; // disconnected while the fetch was in flight
 
         if (settings.last_avatar) {
@@ -95,6 +96,8 @@ export class AvatarSettingsController {
         setPersonaOverridesCache(settings.persona_overrides || {});
         break; // success — no retry needed
       } catch (error) {
+        if (this._destroyed || error.name === "AbortError") return; // torn down — not a real failure
+
         const isLastAttempt = attempt === 1;
         console.error(
           `[avatar-settings-init] getSettings failed (attempt ${attempt + 1}/2)` +
@@ -135,6 +138,7 @@ export class AvatarSettingsController {
   destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
+    this._abortController.abort();
     window.removeEventListener("avatar:select-avatar", this._onSelectAvatar);
     window.removeEventListener(
       "avatar:request-current-profile",
