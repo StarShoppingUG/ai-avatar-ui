@@ -326,6 +326,16 @@ recognizer.onerror = (event) => {
       // mediaRecorder before it runs and causing transcription to
       // silently skip straight to "Ready".
       if (!this.isListening) return;
+
+      // no-speech/aborted are benign hiccups in the *live caption* engine —
+      // they fire on brief pauses even mid-recording, not just at genuine
+      // end-of-speech. They don't mean the user is done talking, so don't
+      // cancel the actual MediaRecorder capture over them — only genuinely
+      // fatal errors should stop the recording early.
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        return;
+      }
+
       this.emit('update-status', { text: `Mic error: ${event.error || 'unknown'}`, color: 'red' });
       this.stopListening(false);
     };
@@ -350,9 +360,7 @@ recognizer.onerror = (event) => {
       return;
     }
 
-    if (!this.recognizer) {
-      this.recognizer = this.initRecognizer();
-    }
+    this.recognizer = this.initRecognizer();
 
     if (!this.recognizer) return;
 
