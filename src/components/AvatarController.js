@@ -26,15 +26,15 @@ const AVATAR_LIST = AVATAR_SOURCES;
 class AvatarController {
   constructor(model) {
     this.model = model;
-    this.instanceId = model.instanceId || 'default';
-    this.currentAvatarId = DEFAULT_AVATAR_ID; 
+    this.instanceId = model.instanceId || "default";
+    this.currentAvatarId = DEFAULT_AVATAR_ID;
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
     this.brain = new CharacterBrain(model.backend || BACKEND, this.instanceId, {
-  appId: model.getAttribute('app-id') || undefined,
-  userId: model.getAttribute('user-id') || undefined,
-  settingsScope: model.getAttribute('settings-scope') || undefined,
-  settingsGroup: model.getAttribute('settings-group') || undefined,
-});
+      appId: model.getAttribute("app-id") || undefined,
+      userId: model.getAttribute("user-id") || undefined,
+      settingsScope: model.getAttribute("settings-scope") || undefined,
+      settingsGroup: model.getAttribute("settings-group") || undefined,
+    });
     this.voiceCatalog = { en: [], ja: [] };
     this.lastAudio = null;
     this.audioQueue = [];
@@ -59,7 +59,6 @@ class AvatarController {
     emitAvatarEvent(name, detail, this.instanceId);
   }
 
-// NEW:
   async init() {
     this.emit("app:loading");
     this.emitStatus("Loading avatar…", "yellow");
@@ -74,16 +73,19 @@ class AvatarController {
     // data for this.currentAvatarId, it doesn't depend on model.loadAvatar()
     this.emitCurrentProfile();
 
-    const loadedOk = await this.selectAvatar(this.currentAvatarId, { persist: false });
+    const loadedOk = await this.selectAvatar(this.currentAvatarId, {
+      persist: false,
+    });
 
-this.refreshHistory();
+    this.refreshHistory();
 
-if (loadedOk) {
-  this.emitStatus("Ready", "green");
-}
-this.emit("app:ready");
+    if (loadedOk) {
+      this.emitStatus("Ready", "green");
+      this.emit("app:ready");
+    } else {
+      this.emit("app:load-error");
+    }
   }
-
 
   // Pulls this user's saved settings (last avatar, reply language, UI
   // language) from the backend and applies them before the first avatar is
@@ -117,7 +119,10 @@ this.emit("app:ready");
         ) {
           this.responseLanguage = settings.response_language;
         }
-        if (settings.ui_language && UI_LANGUAGES.includes(settings.ui_language)) {
+        if (
+          settings.ui_language &&
+          UI_LANGUAGES.includes(settings.ui_language)
+        ) {
           applyUiLanguageToApp(settings.ui_language, this.instanceId);
         }
         // Populate the in-memory overrides cache from the backend's
@@ -133,7 +138,9 @@ this.emit("app:ready");
         const isLastAttempt = attempt === 1;
         console.error(
           `[avatar-init] loadPersistedSettings failed (attempt ${attempt + 1}/2)` +
-            (isLastAttempt ? " — falling back to in-code defaults:" : " — retrying:"),
+            (isLastAttempt
+              ? " — falling back to in-code defaults:"
+              : " — retrying:"),
           error,
         );
         if (!isLastAttempt) {
@@ -173,7 +180,7 @@ this.emit("app:ready");
       this.emitCurrentProfile();
     });
 
-window.addEventListener("avatar:edit-persona", async (event) => {
+    window.addEventListener("avatar:edit-persona", async (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const { avatarId, text, language, name } = event.detail || {};
       const targetId = avatarId || this.currentAvatarId;
@@ -199,11 +206,14 @@ window.addEventListener("avatar:edit-persona", async (event) => {
             fields[isJa ? "persona" : "personaJa"] = translated;
           }
         } catch (error) {
-          console.error("[avatar-persona] translate failed, saving single language only:", error);
+          console.error(
+            "[avatar-persona] translate failed, saving single language only:",
+            error,
+          );
         }
       }
 
-  setPersonaOverride(targetId, fields, this.instanceId);
+      setPersonaOverride(targetId, fields, this.instanceId);
       // Send the FULL overrides cache, not just this one entry — /settings
       // stores persona_overrides as a full replace, not a merge (see
       // save_settings() on the backend). Sending only {targetId: fields}
@@ -309,7 +319,6 @@ window.addEventListener("avatar:edit-persona", async (event) => {
     this._listeners = [];
   }
 
-
   syncInitialResponseLanguage() {
     const settings = document.querySelector("avatar-settings");
     const currentValue = settings?.querySelector(
@@ -347,10 +356,10 @@ window.addEventListener("avatar:edit-persona", async (event) => {
 
     this.emitCurrentProfile();
 
-this.emitStatus(`Loading ${avatar.name}…`, "yellow");
+    this.emitStatus(`Loading ${avatar.name}…`, "yellow");
     this.emit("avatar-loading", { active: true });
 
-const loaded = await this.model.loadAvatar(avatarId, avatar);
+    const loaded = await this.model.loadAvatar(avatarId, avatar);
 
     this.emit("avatar-loading", { active: false });
     // Only announce "Ready" on an actual success — loadAvatar() already
@@ -402,7 +411,7 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
         "Default",
         avatar?.persona,
         { en: avatar?.voiceEn, ja: avatar?.voiceJa },
-        avatar?.name,       // send the display name, not the id
+        avatar?.name, // send the display name, not the id
         speakLanguage,
       );
     } catch (error) {
@@ -437,15 +446,29 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
    */
   appendOptimisticTurn(userText, data) {
     const now = new Date().toISOString();
-    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    const avatarName = lookupAvatar(
+      this.currentAvatarId,
+      this.instanceId,
+    )?.name;
     const base = this._lastKnownHistory || [];
-    const optimistic = [...base,
+    const optimistic = [
+      ...base,
       { role: "user", text: userText, time: now, character_name: avatarName },
-      { role: "assistant", text: data.reply || data.text_en || "", text_en: data.reply || data.text_en || "",
-        text_ja: data.translated_reply || data.text_ja || "", time: now, character_name: avatarName },
+      {
+        role: "assistant",
+        text: data.reply || data.text_en || "",
+        text_en: data.reply || data.text_en || "",
+        text_ja: data.translated_reply || data.text_ja || "",
+        time: now,
+        character_name: avatarName,
+      },
     ];
     this._lastKnownHistory = optimistic;
-    this.emit("chat-history", { history: optimistic, responseLanguage: this.responseLanguage, avatarName });
+    this.emit("chat-history", {
+      history: optimistic,
+      responseLanguage: this.responseLanguage,
+      avatarName,
+    });
   }
 
   applyBehavior(data) {
@@ -756,9 +779,11 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
     // closed captions) instead of one block of text — see
     // splitIntoCaptionChunks/playCaptionChunks.
     const chunks = this.splitIntoCaptionChunks(captionText);
-    const chunkSequence = this.playCaptionChunks(chunks, duration).then((id) => {
-      lastChunkId = id;
-    });
+    const chunkSequence = this.playCaptionChunks(chunks, duration).then(
+      (id) => {
+        lastChunkId = id;
+      },
+    );
 
     await new Promise((resolve) => setTimeout(resolve, duration + 200));
     await chunkSequence;
@@ -861,7 +886,10 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
     for (let i = 0; i < chunks.length; i += 1) {
       const chunk = chunks[i];
       const share = chunk.length / totalChars;
-      const chunkDuration = Math.max(MIN_CHUNK_MS, Math.round(totalDurationMs * share));
+      const chunkDuration = Math.max(
+        MIN_CHUNK_MS,
+        Math.round(totalDurationMs * share),
+      );
 
       captionId = this.emitCaption(chunk, chunkDuration);
       if (i < chunks.length - 1) {
@@ -880,16 +908,27 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
    */
   async refreshHistory() {
     const requestId = ++this._historyRequestId;
-    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    const avatarName = lookupAvatar(
+      this.currentAvatarId,
+      this.instanceId,
+    )?.name;
     try {
       const data = await this.brain.history(avatarName);
       if (requestId !== this._historyRequestId) return;
       const history = Array.isArray(data?.history) ? data.history : [];
       this._lastKnownHistory = history;
-      this.emit("chat-history", { history, responseLanguage: this.responseLanguage, avatarName });
+      this.emit("chat-history", {
+        history,
+        responseLanguage: this.responseLanguage,
+        avatarName,
+      });
     } catch (error) {
       if (requestId !== this._historyRequestId) return;
-      this.emit("chat-history", { history: [], responseLanguage: this.responseLanguage, avatarName });
+      this.emit("chat-history", {
+        history: [],
+        responseLanguage: this.responseLanguage,
+        avatarName,
+      });
     }
   }
 
@@ -900,16 +939,20 @@ const loaded = await this.model.loadAvatar(avatarId, avatar);
    * refreshHistory() will just show the empty state.
    */
   async clearChatHistory() {
-    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    const avatarName = lookupAvatar(
+      this.currentAvatarId,
+      this.instanceId,
+    )?.name;
     await this.brain.reset(avatarName);
     this.refreshHistory();
   }
 
-emitAvailableAvatars() {
+  emitAvailableAvatars() {
     this.emit("available-avatars", {
       avatars: getAllAvatars(this.instanceId),
       currentAvatarId: this.currentAvatarId,
-      currentAvatarName: lookupAvatar(this.currentAvatarId, this.instanceId)?.name,
+      currentAvatarName: lookupAvatar(this.currentAvatarId, this.instanceId)
+        ?.name,
       responseLanguage: this.responseLanguage,
     });
   }
