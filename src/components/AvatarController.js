@@ -154,11 +154,11 @@ class AvatarController {
   }
 
   registerListeners() {
-    window.addEventListener("avatar:open-chat-history", (event) => {
+    this._on("avatar:open-chat-history", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.refreshHistory();
     });
-    window.addEventListener("avatar:clear-chat-history", (event) => {
+    this._on("avatar:clear-chat-history", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.clearChatHistory();
     });
@@ -169,18 +169,18 @@ class AvatarController {
       if (text) this.handleAsk(text);
     });
 
-    window.addEventListener("avatar:select-avatar", (event) => {
+    this._on("avatar:select-avatar", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const avatarName = event.detail?.avatarId;
       if (avatarName) this.selectAvatar(avatarName);
     });
 
-    window.addEventListener("avatar:request-current-profile", (event) => {
+    this._on("avatar:request-current-profile", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.emitCurrentProfile();
     });
 
-    window.addEventListener("avatar:edit-persona", async (event) => {
+    this._on("avatar:edit-persona", async (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const { avatarId, text, language, name } = event.detail || {};
       const targetId = avatarId || this.currentAvatarId;
@@ -226,7 +226,7 @@ class AvatarController {
       this.emitAvailableAvatars();
     });
 
-    window.addEventListener("avatar:reset-persona", (event) => {
+    this._on("avatar:reset-persona", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const targetId = event.detail?.avatarId || this.currentAvatarId;
       resetPersonaOverride(targetId, this.instanceId);
@@ -236,7 +236,7 @@ class AvatarController {
       if (targetId === this.currentAvatarId) this.emitCurrentProfile();
       this.emitAvailableAvatars();
     });
-    window.addEventListener("avatar:set-response-language", (event) => {
+    this._on("avatar:set-response-language", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const language = event.detail?.language;
       if (RESPONSE_LANGUAGES.includes(language)) {
@@ -253,7 +253,7 @@ class AvatarController {
       }
     });
 
-    window.addEventListener("avatar:set-ui-language", (event) => {
+    this._on("avatar:set-ui-language", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const language = event.detail?.language;
       if (UI_LANGUAGES.includes(language)) {
@@ -263,7 +263,7 @@ class AvatarController {
       }
     });
 
-    window.addEventListener("avatar:thinking", (event) => {
+    this._on("avatar:thinking", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const active = Boolean(event.detail?.active);
       if (active) {
@@ -273,7 +273,7 @@ class AvatarController {
       }
     });
 
-    window.addEventListener("avatar:listening", (event) => {
+    this._on("avatar:listening", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const active = Boolean(event.detail?.active);
       if (active) {
@@ -283,7 +283,7 @@ class AvatarController {
       }
     });
 
-    window.addEventListener("avatar:set-voice", (event) => {
+    this._on("avatar:set-voice", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const { lang, voiceName } = event.detail || {};
       const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
@@ -293,7 +293,7 @@ class AvatarController {
       this.emitStatus("Voice updated.", "green");
     });
 
-    window.addEventListener("avatar:set-scale", (event) => {
+    this._on("avatar:set-scale", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       const { scale, verticalOffset } = event.detail || {};
       if (scale === undefined && verticalOffset === undefined) return;
@@ -306,7 +306,7 @@ class AvatarController {
       this.emitStatus("Scale updated.", "green");
     });
 
-    window.addEventListener("avatar:reset", (event) => {
+    this._on("avatar:reset", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
       this.resetConversation();
     });

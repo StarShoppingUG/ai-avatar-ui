@@ -255,7 +255,16 @@ export class AvatarSettingsController {
 
   emitCurrentProfile() {
     const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
-    if (!avatar) return;
+    if (!avatar) {
+      // TEMP DIAGNOSTIC — see back-nav infinite-loading bug. If this fires
+      // during a stuck repro, lookupAvatar() is the confirmed break point:
+      // avatar:update-profile never dispatches, so CharacterCard hangs
+      // until useAvatarProfile's 6s timeout. Remove once root-caused.
+      console.warn(
+        `[emitCurrentProfile] no avatar found for id="${this.currentAvatarId}" instance="${this.instanceId}" — avatar:update-profile will NOT fire`,
+      );
+      return;
+    }
     this.emit("update-profile", {
       name: avatar.name,
       persona: avatar.persona,
