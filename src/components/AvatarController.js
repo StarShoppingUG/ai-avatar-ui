@@ -41,6 +41,7 @@ class AvatarController {
     this.isAudioPlaying = false;
     this._historyRequestId = 0;
     this._listeners = [];
+    this._settingsLoaded = false;
   }
 
   /** Registers a window listener and remembers it so destroy() can remove
@@ -68,6 +69,7 @@ class AvatarController {
 
     this.syncInitialResponseLanguage();
     await this.loadPersistedSettings();
+    this._settingsLoaded = true;
     this.emitAvailableAvatars();
     // Safe to emit early — emitCurrentProfile() only reads AvatarSources
     // data for this.currentAvatarId, it doesn't depend on model.loadAvatar()
@@ -177,6 +179,7 @@ class AvatarController {
 
     this._on("avatar:request-current-profile", (event) => {
       if (event.detail?.instance !== this.instanceId) return;
+      if (!this._settingsLoaded) return;
       this.emitCurrentProfile();
     });
 
