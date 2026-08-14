@@ -9,6 +9,24 @@ text-to-speech, and persisted chat history.
 
 **[Check out the live demo →](https://ai-avatar-ui-ghost.vercel.app/)**
 
+
+## Screenshots
+
+<p align="center">
+  <img src="public/screenshots/Screenshot1.webp" width="48%" />
+  <img src="public/screenshots/Screenshot2.webp" width="48%" />
+</p>
+<p align="center">
+  <img src="public/screenshots/Screenshot3.webp" width="48%" />
+  <img src="public/screenshots/Screenshot4.webp" width="48%" />
+</p>
+<p align="center">
+  <img src="public/screenshots/Screenshot5.webp" width="48%" />
+  <img src="public/screenshots/Screenshot6.webp" width="48%" />
+</p>
+
+---
+
 ## Load It From Vercel
 
 The latest build is hosted at
@@ -45,7 +63,7 @@ Html
       send-button="#my-send-btn"
       mic-button="#my-mic-btn"
     ></avatar-inputs> -->
-   <avatar-inputs></avatar-inputs>
+   <avatar-inputs backend="backend-url"></avatar-inputs>
    
   </div>
 
@@ -85,7 +103,7 @@ export default function AvatarWidget() {
 
       <avatar-status></avatar-status>
       <avatar-settings></avatar-settings>
-      <avatar-inputs></avatar-inputs>
+      <avatar-inputs backend="backend-url"></avatar-inputs>
       
     </div>
   );
@@ -93,7 +111,6 @@ export default function AvatarWidget() {
 
 
 ```
-
 
 Set `backend` to wherever your own backend (implementing the
 [API Contract](#api-contract) below) is running — see
@@ -103,22 +120,6 @@ recommended for any third-party integration — see
 [Persistence & Identity](#persistence--identity). Visit the URL directly
 in a browser for a live demo and usage notes.
 
-## Screenshots
-
-<p align="center">
-  <img src="public/Screenshot1.png" width="48%" />
-  <img src="public/Screenshot2.png" width="48%" />
-</p>
-<p align="center">
-  <img src="public/Screenshot3.png" width="48%" />
-  <img src="public/Screenshot4.png" width="48%" />
-</p>
-<p align="center">
-  <img src="public/Screenshot5.png" width="48%" />
-  <img src="public/Screenshot6.png" width="48%" />
-</p>
-
----
 
 ## Features
 
@@ -175,7 +176,7 @@ avatar/
 - `<avatar-status>` — Shows if the avatar is offline, thinking, or talking.
 - `<avatar-captions>` — Displays the text subtitles on the screen.
 - `<avatar-settings>` — Configuration UI for languages, voice choices, character selection, and chat history. Can run standalone, with no `<avatar-model>` on the page — see [Settings-Only Pages](#settings-only-pages--cross-page-configuration).
-- `<avatar-inputs>` — The text box, send button, and microphone controls. Optionally binds to your own existing elements instead of its own defaults — see [Custom Input Elements](#custom-input-elements) below.
+- `<avatar-inputs>` — The text box, send button, and microphone controls. Accepts its own `backend` attribute for the `/stt` endpoint — see [Backend](#backend). Optionally binds to your own existing elements instead of its own defaults — see [Custom Input Elements](#custom-input-elements) below.
 
 
 ---
@@ -334,7 +335,7 @@ page loads instead of one:
 <!-- Page B: display, no settings panel -->
 <avatar-model instance="slot-1" app-id="acme-corp" user-id="user-001" backend="..."></avatar-model>
 <avatar-status instance="slot-1"></avatar-status>
-<avatar-inputs instance="slot-1"></avatar-inputs>
+<avatar-inputs instance="slot-1" backend="..."></avatar-inputs>
 ```
 
 Avatar selection, persona/name, reply language, and interface language all
@@ -381,12 +382,15 @@ element, e.g.:
 <avatar-model backend="http://localhost:8000"></avatar-model>
 ```
 
-> **Note:** the `backend` attribute currently redirects everything routed
-> through `CharacterBrain.js` (`/ask`, `/history`, `/settings`, `/reset`,
-> `/voices`). Voice input (`/stt`) and the TTS audio URL prefix still read
-> `BACKEND` directly from `constants.js` rather than the attribute, so if
-> you point `backend` at a different origin, edit `BACKEND` in
-> `constants.js` too until those paths are unified.
+> **Note:** `<avatar-inputs>` accepts its own `backend` attribute (same as
+> `<avatar-model>`) so voice input (`/stt`) is sent to the right origin.
+> Set it explicitly on `<avatar-inputs>` too — it does **not** infer this
+> from a sibling `<avatar-model>` on the page:
+>
+> ```html
+> <avatar-model backend="http://localhost:8000"></avatar-model>
+> <avatar-inputs backend="http://localhost:8000"></avatar-inputs>
+> ```
 
 ## API Contract
 
