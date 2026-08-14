@@ -52,6 +52,7 @@ export class AvatarSettingsController {
     this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope, settingsGroup });
     this._destroyed = false;
     this._abortController = new AbortController();
+    this._settingsLoaded = false;
 
     // Bind once and keep the references around — addEventListener and
     // removeEventListener only cancel each other out when given the exact
@@ -112,6 +113,7 @@ export class AvatarSettingsController {
     }
 
     if (this._destroyed) return;
+    this._settingsLoaded = true;
     this.emitAvailableAvatars();
     this.emitCurrentProfile();
   }
@@ -171,6 +173,7 @@ export class AvatarSettingsController {
   _onRequestCurrentProfile(event) {
     if (this._destroyed) return;
     if (event.detail?.instance !== this.instanceId) return;
+    if (!this._settingsLoaded) return;
     this.emitCurrentProfile();
   }
 
