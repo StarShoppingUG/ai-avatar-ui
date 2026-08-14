@@ -360,13 +360,13 @@ avatar-model .avatar-retry-btn:active {
 
 /* Microphone dark UI variation */
 .mic-btn {
-  background-color: rgba(255, 255, 255, 0.03); /* Subtle dark glass background — unchanged */
-  color: #94a3b8; /* Soft slate gray icon color — unchanged */
+  background-color: #14389b; /* Same blue as .send-btn */
+  color: #ffffff;
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.22); /* Only this got stronger — was 0.05 */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); /* Subtle lift, monochrome */
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Same shadow weight as .send-btn */
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -380,10 +380,8 @@ avatar-model .avatar-retry-btn:active {
 }
 
 .mic-btn:hover {
-  color: #3b82f6;
-  background-color: rgba(59, 130, 246, 0.12); /* Matching soft blue glass background */
-  border-color: rgba(59, 130, 246, 0.3); /* Glowing border edge */
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.25); /* Ultra-soft, high-end neon ambient glow */
+  background-color: #1d4ed8; /* Same hover blue as .send-btn */
+  box-shadow: 0 0 14px rgba(29, 78, 216, 0.4); /* Same glow as .send-btn:hover */
 }
 
 .mic-btn:disabled,
