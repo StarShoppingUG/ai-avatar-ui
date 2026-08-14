@@ -635,9 +635,18 @@ updateProfile(detail = {}) {
     const initId = this._persistenceInitId;
     try {
       await customElements.whenDefined("avatar-model");
-      const hasMatchingModel = Array.from(
+      const matchingModelEls = Array.from(
         document.querySelectorAll("avatar-model"),
-      ).some((el) => (el.getAttribute("instance") || "default") === this.instanceId);
+      ).filter((el) => (el.getAttribute("instance") || "default") === this.instanceId);
+      const hasMatchingModel = matchingModelEls.length > 0;
+      // TEMP diagnostic — see HANDOFF3.md / persona-desync investigation.
+      // eslint-disable-next-line no-console
+      console.log(
+        `[initPersistence:${this.instanceId}] hasMatchingModel:`, hasMatchingModel,
+        "matched els isConnected:", matchingModelEls.map((el) => el.isConnected),
+        "all avatar-model instances on page:",
+        Array.from(document.querySelectorAll("avatar-model")).map((el) => el.getAttribute("instance")),
+      );
 
       if (hasMatchingModel) return;
 
