@@ -3,9 +3,19 @@ import { getStoredUiLanguage, getUiText } from './i18n.js';
 import { BACKEND } from './constants.js';
 
 class AvatarInputs extends HTMLElement {
+  static get observedAttributes() {
+    return ['backend', 'instance'];
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === 'backend' && newValue) this.backend = newValue;
+    if (name === 'instance' && newValue) this.instanceId = newValue;
+  }
+
   connectedCallback() {
     this.classList.add('avatar-inputs');
     this.instanceId = this.getAttribute('instance') || 'default';
+    this.backend = this.getAttribute('backend') || BACKEND;
 
     // Optional attributes let a page supply its own already-built text
     // input / send button / mic button instead of using the defaults
@@ -121,24 +131,6 @@ this.isTranscribing = false;
   // id is always stamped automatically.
   emit(name, detail = {}) {
     emitAvatarEvent(name, detail, this.instanceId);
-  }
-
-  // The /stt request needs the SAME backend origin as everything routed
-  // through CharacterBrain.js (/ask, /history, etc) — but this component
-  // has no direct reference to its <avatar-model> sibling, and the bare
-  // BACKEND import from constants.js doesn't know about a `backend`
-  // attribute override. Look up the matching instance's <avatar-model>
-  // element and read its live attribute instead, falling back to BACKEND
-  // only if none is found (e.g. no avatar-model on the page at all).
-  _resolveBackend() {
-    const candidates = document.querySelectorAll('avatar-model');
-    for (const el of candidates) {
-      const id = el.getAttribute('instance') || 'default';
-      if (id === this.instanceId) {
-        return el.getAttribute('backend') || BACKEND;
-      }
-    }
-    return BACKEND;
   }
 
   cacheNodes() {
@@ -501,7 +493,7 @@ finishRecordingAndTranscribe() {
         formData.append('audio', blob, `speech.${extension}`);
         formData.append('language', this.recognitionLanguage.startsWith('ja') ? 'ja' : 'en');
 
-        const response = await fetch(`${this._resolveBackend()}/stt`, { method: 'POST', body: formData });
+        const response = await fetch(`${this.backend || BACKEND}/stt`, { method: 'POST', body: formData });
         if (response.ok) {
           const { text } = await response.json();
           if (text && this.input) {
