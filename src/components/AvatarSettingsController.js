@@ -49,7 +49,7 @@ constructor({ backend = BACKEND, instanceId = "default", appId, userId, settings
     this.instanceId = instanceId;
     this.currentAvatarId = DEFAULT_AVATAR_ID;
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
-    this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope, settingsGroup });
+    this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope, settingsGroup: settingsGroup || instanceId });
     this._destroyed = false;
     this._abortController = new AbortController();
     this._settingsLoaded = false;
