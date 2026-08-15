@@ -45,7 +45,7 @@ import { applyUiLanguageToApp } from "./i18n.js";
  * stale controller exists to interfere; SPA navigation does not.
  */
 export class AvatarSettingsController {
-  constructor({ backend = BACKEND, instanceId = "default", appId, userId, settingsScope, settingsGroup } = {}) {
+constructor({ backend = BACKEND, instanceId = "default", appId, userId, settingsScope, settingsGroup } = {}) {
     this.instanceId = instanceId;
     this.currentAvatarId = DEFAULT_AVATAR_ID;
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
@@ -53,17 +53,16 @@ export class AvatarSettingsController {
     this._destroyed = false;
     this._abortController = new AbortController();
     this._settingsLoaded = false;
+    this._historyRequestId = 0;
 
-    // Bind once and keep the references around — addEventListener and
-    // removeEventListener only cancel each other out when given the exact
-    // same function reference, so the old inline-arrow-function version of
-    // registerListeners() could never actually be unregistered.
     this._onSelectAvatar = this._onSelectAvatar.bind(this);
     this._onRequestCurrentProfile = this._onRequestCurrentProfile.bind(this);
     this._onSetResponseLanguage = this._onSetResponseLanguage.bind(this);
     this._onSetUiLanguage = this._onSetUiLanguage.bind(this);
     this._onEditPersona = this._onEditPersona.bind(this);
     this._onResetPersona = this._onResetPersona.bind(this);
+    this._onOpenChatHistory = this._onOpenChatHistory.bind(this);
+    this._onClearChatHistory = this._onClearChatHistory.bind(this);
   }
 
   emit(name, detail = {}) {
@@ -118,7 +117,7 @@ export class AvatarSettingsController {
     this.emitCurrentProfile();
   }
 
-  registerListeners() {
+registerListeners() {
     window.addEventListener("avatar:select-avatar", this._onSelectAvatar);
     window.addEventListener(
       "avatar:request-current-profile",
@@ -131,13 +130,15 @@ export class AvatarSettingsController {
     window.addEventListener("avatar:set-ui-language", this._onSetUiLanguage);
     window.addEventListener("avatar:edit-persona", this._onEditPersona);
     window.addEventListener("avatar:reset-persona", this._onResetPersona);
+    window.addEventListener("avatar:open-chat-history", this._onOpenChatHistory);
+    window.addEventListener("avatar:clear-chat-history", this._onClearChatHistory);
   }
 
   /** Removes every window listener registered in registerListeners() and
    * marks this controller inert. Safe to call more than once. Must be
    * called by the owning <avatar-settings> element's disconnectedCallback
    * — see the class doc comment above for why this matters in Next.js. */
-  destroy() {
+destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
     this._abortController.abort();
@@ -156,6 +157,8 @@ export class AvatarSettingsController {
     );
     window.removeEventListener("avatar:edit-persona", this._onEditPersona);
     window.removeEventListener("avatar:reset-persona", this._onResetPersona);
+    window.removeEventListener("avatar:open-chat-history", this._onOpenChatHistory);
+    window.removeEventListener("avatar:clear-chat-history", this._onClearChatHistory);
   }
 
   _onSelectAvatar(event) {
@@ -246,6 +249,17 @@ export class AvatarSettingsController {
     if (targetId === this.currentAvatarId) this.emitCurrentProfile();
     this.emitAvailableAvatars();
   }
+  _onOpenChatHistory(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    this.refreshHistory();
+  }
+
+  _onClearChatHistory(event) {
+    if (this._destroyed) return;
+    if (event.detail?.instance !== this.instanceId) return;
+    this.clearChatHistory();
+  }
 
   emitAvailableAvatars() {
     this.emit("available-avatars", {
@@ -275,5 +289,42 @@ export class AvatarSettingsController {
       thumbnail: avatar.thumbnail,
       isCustomPersona: hasPersonaOverride(avatar.id, this.instanceId),
     });
+  }
+  /**
+   * Same contract as AvatarController.refreshHistory() — pulls the
+   * authoritative log from the backend and hands it to the UI as one full
+   * snapshot (avatar:chat-history). Added because AvatarSettingsController
+   * previously had no chat-history support at all, so <avatar-settings>
+   * instances with no matching <avatar-model> (e.g. CharacterPreviewCard's
+   * settings-only usage) silently never answered avatar:open-chat-history.
+   */
+  async refreshHistory() {
+    const requestId = ++this._historyRequestId;
+    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    try {
+      const data = await this.brain.history(avatarName);
+      if (this._destroyed || requestId !== this._historyRequestId) return;
+      const history = Array.isArray(data?.history) ? data.history : [];
+      this.emit("chat-history", {
+        history,
+        responseLanguage: this.responseLanguage,
+        avatarName,
+      });
+    } catch (error) {
+      if (this._destroyed || requestId !== this._historyRequestId) return;
+      this.emit("chat-history", {
+        history: [],
+        responseLanguage: this.responseLanguage,
+        avatarName,
+      });
+    }
+  }
+
+  async clearChatHistory() {
+    if (this._destroyed) return;
+    const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
+    await this.brain.reset(avatarName);
+    if (this._destroyed) return;
+    this.refreshHistory();
   }
 }

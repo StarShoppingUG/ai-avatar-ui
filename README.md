@@ -19,6 +19,10 @@ text-to-speech, and persisted chat history.
   <img src="public/screenshots/Screenshot3.webp" width="48%" />
   <img src="public/screenshots/Screenshot4.webp" width="48%" />
 </p>
+<p align="center">
+  <img src="public/screenshots/Screenshot5.webp" width="48%" />
+  <img src="public/screenshots/Screenshot6.webp" width="48%" />
+</p>
 
 ---
 

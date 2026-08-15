@@ -104,17 +104,6 @@
       </div>
     </div>
 
-    <!--
-      NEW: settings-only column — deliberately NO <avatar-model instance="three">
-      anywhere on this page. This is the case that previously did nothing at
-      all: AvatarSettings.initPersistence() should detect no matching
-      <avatar-model> for instance="three", spin up AvatarSettingsController
-      itself, and every change made here (avatar pick, persona edit, language)
-      should actually hit the backend. Same app-id/user-id as column one on
-      purpose — reload column one's page (or re-open this same page) after
-      changing something here and confirm it picks up what was set here,
-      since they resolve to the same settings row.
-    -->
     <div class="instance-column instance-column--settings-only">
       <div class="instance-label">Settings-only — App: acme-corp — User: user-001 (instance="three")</div>
       <div class="ai-avatar-shell">
