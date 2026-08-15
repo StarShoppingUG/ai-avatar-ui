@@ -9,7 +9,6 @@ text-to-speech, and persisted chat history.
 
 **[Check out the live demo →](https://ai-avatar-ui-ghost.vercel.app/)**
 
-
 ## Screenshots
 
 <p align="center">
@@ -19,10 +18,6 @@ text-to-speech, and persisted chat history.
 <p align="center">
   <img src="public/screenshots/Screenshot3.webp" width="48%" />
   <img src="public/screenshots/Screenshot4.webp" width="48%" />
-</p>
-<p align="center">
-  <img src="public/screenshots/Screenshot5.webp" width="48%" />
-  <img src="public/screenshots/Screenshot6.webp" width="48%" />
 </p>
 
 ---
@@ -47,28 +42,15 @@ Html
     </div>
     <avatar-status></avatar-status>
     <avatar-settings></avatar-settings>
-
-    <!-- Optional: point avatar-inputs at your own chat UI instead of its
-         built-in textarea/buttons. Each attribute is independent — supply
-         one, two, or all three; omit any of them to keep the built-in
-         default for that piece. See Custom Input Elements below. -->
-    <!--
-    <div class="my-existing-chat-bar">
-      <textarea id="my-chat-input"></textarea>
-      <button id="my-mic-btn">🎤</button>
-      <button id="my-send-btn">Send</button>
-    </div>
-    <avatar-inputs
-      text-input="#my-chat-input"
-      send-button="#my-send-btn"
-      mic-button="#my-mic-btn"
-    ></avatar-inputs> -->
-   <avatar-inputs backend="backend-url"></avatar-inputs>
-   
+    <avatar-inputs backend="backend-url"></avatar-inputs>
   </div>
 
   <script type="module" src="https://ai-avatar-ui-ghost.vercel.app/ai-avatar-ui.js"></script>
 ```
+
+> To point `<avatar-inputs>` at your own existing chat UI instead of its
+> built-in textarea/buttons, see [Custom Input Elements](#custom-input-elements).
+
 React/Next.js
 ```jsx
 'use client'
@@ -108,8 +90,6 @@ export default function AvatarWidget() {
     </div>
   );
 }
-
-
 ```
 
 Set `backend` to wherever your own backend (implementing the
@@ -127,14 +107,14 @@ in a browser for a live demo and usage notes.
 - **3D Lip-Sync** — Powered by `three.js`, driving real-time facial morphs and animations from server-generated visemes.
 - **Multiple Avatars** — Switch between characters at runtime; each keeps its own persona, voice, and chat history.
 - **Persistent Chat History & Settings** — Reply language, interface language, and your last-selected avatar are remembered across visits, with no account or login required (see [Persistence & Identity](#persistence--identity)).
-- **Multi-Tenant Ready** — Third-party apps embedding this widget can pass their own `app-id` (and optionally `user-id`) so each integrator's users stay fully isolated from every other integrator's, with no login system required on either side. Settings can additionally be scoped per-app instead of per-user via `settings-scope="app"`, while chat history always stays per-user (see [Persistence & Identity](#persistence--identity)).
+- **Multi-Tenant Ready** — Third-party apps embedding this widget can pass their own `app-id` (and optionally `user-id`) so each integrator's users stay fully isolated from every other integrator's. Settings can additionally be scoped per-app via `settings-scope="app"` (see [Persistence & Identity](#persistence--identity)).
 - **Offline Fallback** — If the backend drops, the avatar keeps moving safely with a neutral expression and an "offline" animation instead of freezing or crashing.
-- **Load-Failure Recovery** — A failed avatar load (e.g. an unstable connection while fetching the GLB) shows a clear retry prompt over the 3D area instead of silently leaving it blank, and disables chat input until the retry succeeds — see [Load Error Handling](#load-error-handling).
+- **Load-Failure Recovery** — see [Load Error Handling](#load-error-handling).
 - **Auto-Timezone Awareness** — Detects the browser's timezone automatically so the AI is grounded in the real current date and time.
 - **Voice Input** — Live interim captions via the browser's SpeechRecognition API, with the final transcript refined server-side via Whisper.
-- **Editable Personas** — Each avatar's persona and display name can be edited directly from the settings panel, with a one-click reset back to its built-in default. Edits are per-avatar and per-instance, persisted to the backend (not `localStorage`) as part of that identity's settings — so they carry over across devices/browsers the same way reply language and last-selected avatar already do, and to a settings-only page with no `<avatar-model>` at all (see [Settings-Only Pages](#settings-only-pages--cross-page-configuration)). Editing either language automatically translates and fills in the other via the backend's `/translate` endpoint.
-- **Bring-Your-Own Input UI** — `<avatar-inputs>` can adopt an existing text field, send button, and/or mic button already on your page instead of rendering its own — see [Custom Input Elements](#custom-input-elements).
-- **Multiple Avatars Per Page** — Run several fully independent avatar groups on the same page at once (e.g. a "tutor" and a "receptionist" side by side), each with its own conversation, status, captions, and settings — see [Multiple Avatar Instances](#multiple-avatar-instances).
+- **Editable Personas** — persisted to the backend (not `localStorage`), per avatar and per instance — see [Settings-Only Pages](#settings-only-pages--cross-page-configuration).
+- **Bring-Your-Own Input UI** — see [Custom Input Elements](#custom-input-elements).
+- **Multiple Avatars Per Page** — see [Multiple Avatar Instances](#multiple-avatar-instances).
 
 ---
 ## Project Structure
@@ -152,7 +132,7 @@ src/
     AvatarInputs.js                # <avatar-inputs> — text box, send button, mic/voice input
     AvatarSettings.js              # <avatar-settings> — avatar/language pickers, chat history panel
     AvatarPickerCore.js            # Shared avatar-grid/persona-edit logic used by AvatarSettings
-    Events.js                      # Thin pub/sub layer over window CustomEvents
+    events.js                      # Thin pub/sub layer over window CustomEvents
     i18n.js                        # UI copy (EN/JA) + language helpers
     constants.js                   # App-wide constants (backend URL, supported languages, etc.)
 avatar/
@@ -193,18 +173,29 @@ Components don't reference each other directly — they communicate through
 | `avatar:select-avatar` | settings, setup | User picked a different avatar |
 | `avatar:set-ui-language` | settings, setup | Switches interface labels (`en` / `ja`) |
 | `avatar:set-response-language` | settings, setup | Switches the avatar's reply language (`en` / `ja` / `both`) |
-| `avatar:set-voice` | settings | Overrides the TTS voice for the current avatar |
+| `avatar:set-scale` | host page | Adjusts the loaded avatar's scale/vertical offset at runtime |
+| `avatar:set-voice`¹ | settings | Overrides the TTS voice for the current avatar |
+| `avatar:edit-persona` | settings | Saves an edited name/persona for an avatar |
+| `avatar:reset-persona` | settings | Reverts an avatar's persona back to its built-in default |
 | `avatar:open-chat-history` / `avatar:clear-chat-history` | settings | Opens the history panel / clears the *current avatar's* history |
 | `avatar:reset` | — | Resets the active conversation |
+| `avatar:request-current-profile` | any consumer | Read-only nudge asking the controller to (re)broadcast its current profile |
 | `avatar:update-status` | controller | Updates the status pill text and color |
 | `avatar:show-caption` / `avatar:hide-caption` | controller | Shows or hides subtitles |
 | `avatar:thinking` / `avatar:listening` / `avatar:speaking` | controller | Drives the avatar's pose/animation while processing, recording, or talking |
-| `avatar:available-avatars` / `avatar:available-voices` | controller | Populates the avatar and voice pickers |
-| `avatar:update-profile` | controller | Updates the settings panel's name/persona card |
+| `avatar:available-avatars` | controller | Populates the avatar picker and settings panel |
+| `avatar:available-voices`¹ | controller | Populates the voice picker |
+| `avatar:update-profile` | controller | Updates the settings panel's/card's name/persona data |
 | `avatar:chat-history` | controller | Delivers a fresh snapshot of chat history to render |
-| `avatar:avatar-loading` | controller | Toggles the loading overlay while a new avatar model loads |
+| `avatar:avatar-loading` | controller | Toggles while a specific avatar model is (re)loading, e.g. on selection |
 | `avatar:load-error` | controller | Fires `{ active: true }` when an avatar fails to load (disables chat input until resolved) and `{ active: false }` on a successful (re)load |
-| `avatar:app:loading` / `avatar:app:ready` | controller | Marks overall app startup boundaries |
+| `avatar:app:loading` / `avatar:app:ready` | controller | Marks overall widget startup boundaries |
+| `avatar:app:load-error` | controller | Signals the *initial* avatar load at startup failed — distinct from `avatar:load-error`, which covers a later avatar swap |
+
+¹ Not confirmed against the shared picker (`AvatarPickerCore.js`), which has
+no voice-select UI node wired up today — this may live elsewhere in
+`AvatarSettings.js`, or be stale. Worth double-checking against source if
+you're relying on voice switching.
 
 ---
 
@@ -261,7 +252,6 @@ more than one element (or the wrong group's element) will bind to
 whichever element `document.querySelector` finds first.
 
 ## Multiple Avatar Instances
-
 
 To run more than one avatar on the same page — each with its own
 conversation, status pill, captions, and settings — give every element in
@@ -323,8 +313,8 @@ persists changes directly, with no other wiring needed:
 ```
 
 For a settings-only page and a separate display page to represent the
-*same* avatar slot, both must use the **same `instance`, `app-id`, and
-`user-id`** — this is the same identity contract described in
+*same* avatar slot, both must use the same `instance`, `app-id`, and
+`user-id` — the identity contract described in
 [Persistence & Identity](#persistence--identity), just split across two
 page loads instead of one:
 
@@ -340,20 +330,14 @@ page loads instead of one:
 
 Avatar selection, persona/name, reply language, and interface language all
 carry over this way. Voice and scale are not exposed on the settings panel
-today and remain session-only regardless of page.
-
-A different `instance` value on the two pages will **not** link them, even
-with matching `app-id`/`user-id` — `instance` is part of the scoping key for
-persona overrides specifically, so it must match exactly for edits made on
-the settings-only page to show up on the display page.
+today and remain session-only regardless of page. A different `instance`
+value on the two pages will **not** link them, even with matching
+`app-id`/`user-id` — `instance` is part of the scoping key for persona
+overrides specifically.
 
 `settings-scope` (see [Settings Scope: Per-App vs Per-User](#settings-scope-per-app-vs-per-user))
 works the same way on `<avatar-settings>` as it does on `<avatar-model>` —
-set it on whichever element is actually persisting for a given page (the
-settings-only page's `<avatar-settings>`, or the display page's
-`<avatar-model>` when both are present together). Keep it consistent
-across both pages for the same `instance`/`app-id`, same as `app-id` and
-`user-id` themselves.
+keep it consistent across both pages for the same `instance`/`app-id`.
 
 ## Backend
 
@@ -526,18 +510,8 @@ using the same `app-id` if you want `app` scoping to behave predictably.
 
 ## Quickstart
 
-### 1. Installation
 ```bash
-npm install
-```
-
-### 2. Development
-Run the local dev server (make sure the backend is running too — see above):
-```bash
-npm run dev
-```
-
-### 3. Build Production Files
-```bash
-npm run build
+npm install       # 1. Install
+npm run dev        # 2. Development server (make sure the backend is running too — see above)
+npm run build       # 3. Build production files
 ```
