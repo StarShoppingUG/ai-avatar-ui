@@ -108,7 +108,7 @@ export class CharacterBrain {
      *   The backend uses this for the LLM's self-identification.
      * @param {string} [speakLanguage] - user's speaking language
      */
-    async ask(text, persona, avatarPersona = null, voices = {}, characterName = null, speakLanguage = 'en') {
+    async ask(text, persona, avatarPersona = null, voices = {}, characterName = null, speakLanguage = 'en', teachingMode = false) {
         const res = await fetch(`${this.backend}/ask`, {
             method: 'POST',
             headers: this._jsonHeaders(),
@@ -121,6 +121,7 @@ export class CharacterBrain {
                 voice_ja: voices.ja || null,
                 speak_language: speakLanguage === 'ja' ? 'ja' : 'en',
                 timezone: this.userTimezone,  // Send timezone for real-time date awareness
+                teaching_mode: Boolean(teachingMode),
             }),
         });
         if (!res.ok) throw new Error(`Backend /ask failed (${res.status})`);

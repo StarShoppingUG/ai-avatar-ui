@@ -416,6 +416,7 @@ class AvatarController {
         { en: avatar?.voiceEn, ja: avatar?.voiceJa },
         avatar?.name, // send the display name, not the id
         speakLanguage,
+        Boolean(avatar?.teachingMode),
       );
     } catch (error) {
       reachedBackend = false;

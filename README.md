@@ -119,6 +119,7 @@ in a browser for a live demo and usage notes.
 - **Editable Personas** — persisted to the backend (not `localStorage`), per avatar and per instance — see [Settings-Only Pages](#settings-only-pages--cross-page-configuration).
 - **Bring-Your-Own Input UI** — see [Custom Input Elements](#custom-input-elements).
 - **Multiple Avatars Per Page** — see [Multiple Avatar Instances](#multiple-avatar-instances).
+- **Language-Tutor Avatars** — avatars flagged `teachingMode: true` in `AvatarSources.js` speak in a natural mix of the language they teach and the student's native language (words being taught are inline-annotated with their reading), instead of a plain single-language reply — see the reference backend's `teaching_mode` handling in [API Contract](#api-contract).
 
 ---
 ## Project Structure
@@ -141,7 +142,7 @@ src/
     constants.js                   # App-wide constants (backend URL, supported languages, etc.)
 avatar/
   CharacterBrain.js              # Backend API client (fetch wrappers + app-id/user-id identity handling)
-  AvatarSources.js               # Avatar roster: names, personas, model files, default voices
+  AvatarSources.js               # Avatar roster: names, personas, model files, default voices, per-avatar teachingMode flag
   AvatarManager.js                # Loads/positions the GLB avatar body, disposes the previous one on swap, times out stalled loads
   AvatarScale.js                  # Normalizes avatar height/build and grounds it in the scene
   AnimationManager.js            # Loads and plays Mixamo body clips (idle, talk, think, gestures)
@@ -393,7 +394,7 @@ headers are for.
 
 | Endpoint | Method | Request | Response |
 |---|---|---|---|
-| `/ask` | POST | `{ text, persona, avatar_persona, character_name, voice_en, voice_ja, speak_language, timezone }` | `{ reply, translated_reply, expression, animation, primary, audio_url_en, audio_url_ja, visemes_en, visemes_ja }` |
+| `/ask` | POST | `{ text, persona, avatar_persona, character_name, voice_en, voice_ja, speak_language, timezone, teaching_mode }` | `{ reply, translated_reply, expression, animation, primary, audio_url_en, audio_url_ja, visemes_en, visemes_ja }` |
 | `/translate` | POST | `application/x-www-form-urlencoded`: `text`, `target` | `{ text, romanization }` |
 | `/history` | GET | query: `character_name` (optional) | `{ history: [{ role, text/content, text_en?, text_ja?, time, character_name? }, ...] }` |
 | `/settings` | GET | — | `{ ui_language, response_language, last_avatar, persona_overrides }` |
@@ -419,6 +420,7 @@ Notes for implementers:
   factored into isolation, not `X-User-Id` alone, or two different
   integrators' users with the same `user-id` will collide.
 - `persona_overrides` is an object keyed by `"<instance>::<avatarId>"` strings (e.g. `"slot-1::female_ug": { "name": "...", "persona": "...", "personaJa": "..." }`), constructed and read entirely client-side — the backend just needs to store and return whatever object it's given. The frontend always sends its **complete current object** on every persona edit, so this field must be stored as a full replace, not merged server-side, or edits to one avatar will silently wipe out previously saved edits to others.
+- `teaching_mode` (optional boolean, defaults to `false`) is set per-request by `AvatarController` based on the currently-selected avatar's own `teachingMode` flag in `AvatarSources.js` — it's an avatar property, not something the frontend UI exposes as a toggle. When `true`, the reference backend produces one reply that naturally mixes the taught language and the student's native language instead of a separate English reply plus Japanese translation; in that mode `translated_reply` mirrors `reply`, `romanization` (from a separate `/translate` call, not `/ask` itself) doesn't apply, and `audio_url_en`/`audio_url_ja` point to the same single generated track. A backend that doesn't implement teaching mode can safely ignore the field entirely — it just won't produce the mixed-language behavior for avatars flagged this way.
 - `/settings` (GET and POST) is the only pair of endpoints affected by `X-Settings-Scope`. When it's `"app"`, the reference backend reads/writes a settings row keyed by `app_id` alone (shared across every `user_id` under that app); otherwise it uses the same compound `"<app-id>::<user-id>"` key as chat history. Chat history itself (`/history`, `/reset`) never reads this header — it's always keyed per end-user regardless of settings scope.
 
 ## Persistence & Identity
