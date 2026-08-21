@@ -27,10 +27,15 @@ class AvatarModel extends HTMLElement {
     // tuned defaults rather than us re-declaring them here. Width/height are
     // handled separately below (avatar-width/avatar-height attributes,
     // container-fill by default) — they're layout, not model scale.
-    this.avatarScaleConfig = {
-      scale: this._floatAttr('avatar-scale'),
-      verticalOffset: this._floatAttr('avatar-vertical-offset'),
-    };
+    //
+    // avatar-scale-mobile / avatar-vertical-offset-mobile are optional
+    // overrides used only when the viewport matches avatar-mobile-breakpoint
+    // (default 640px) — see _computeScaleConfig(). Each falls back to the
+    // non-mobile value when unset, so a consumer that only sets the base
+    // attributes behaves exactly as before.
+    this._mobileMq = null;
+    this._isMobile = false;
+    this.avatarScaleConfig = this._computeScaleConfig();
     this.scene = new THREE.Scene();
     this.renderer = null;
     this.camera = null;
@@ -58,6 +63,40 @@ class AvatarModel extends HTMLElement {
     return Number.isNaN(value) ? undefined : value;
   }
 
+  /** Resolves the effective {scale, verticalOffset} for the current viewport,
+   * preferring the -mobile attribute when one is set and the breakpoint
+   * currently matches, otherwise falling back to the base attribute. */
+  _computeScaleConfig() {
+    const base = {
+      scale: this._floatAttr('avatar-scale'),
+      verticalOffset: this._floatAttr('avatar-vertical-offset'),
+    };
+    if (!this._isMobile) return base;
+    const mobileScale = this._floatAttr('avatar-scale-mobile');
+    const mobileOffset = this._floatAttr('avatar-vertical-offset-mobile');
+    return {
+      scale: mobileScale !== undefined ? mobileScale : base.scale,
+      verticalOffset: mobileOffset !== undefined ? mobileOffset : base.verticalOffset,
+    };
+  }
+
+  /** Starts (or restarts, if the breakpoint attribute changed) watching for
+   * mobile/desktop transitions and re-applies scale config live on change. */
+  _bindMobileWatcher() {
+    if (this._mobileMq) {
+      this._mobileMq.removeEventListener('change', this._onMobileMqChange);
+    }
+    const breakpoint = this._floatAttr('avatar-mobile-breakpoint') ?? 640;
+    this._mobileMq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    this._isMobile = this._mobileMq.matches;
+    this._onMobileMqChange = (e) => {
+      this._isMobile = e.matches;
+      this.avatarScaleConfig = this._computeScaleConfig();
+      this.avatarManager?.setTransform(this.avatarScaleConfig);
+    };
+    this._mobileMq.addEventListener('change', this._onMobileMqChange);
+  }
+
 static get observedAttributes() {
     // avatar-width / avatar-height are OPTIONAL. By default the element
     // fills its container (see the injected CSS above) — that's the
@@ -76,7 +115,7 @@ static get observedAttributes() {
     // which of that app's end-users this widget instance belongs to — see
     // CharacterBrain.js. Observed so a host app setting these slightly
     // after connect (e.g. after an async auth check) still takes effect.
-    return ['avatar-width', 'avatar-height', 'backend', 'app-id', 'user-id', 'avatar-scale', 'avatar-vertical-offset', 'instance'];
+    return ['avatar-width', 'avatar-height', 'backend', 'app-id', 'user-id', 'avatar-scale', 'avatar-vertical-offset', 'avatar-scale-mobile', 'avatar-vertical-offset-mobile', 'avatar-mobile-breakpoint', 'instance'];
   }
 
 attributeChangedCallback(name, oldValue, newValue) {
@@ -99,10 +138,15 @@ attributeChangedCallback(name, oldValue, newValue) {
     if (name === 'app-id' || name === 'user-id') {
       this._recreateBrain();
     }
-    if (name === 'avatar-scale' || name === 'avatar-vertical-offset') {
-      this.avatarScaleConfig.scale = this._floatAttr('avatar-scale');
-      this.avatarScaleConfig.verticalOffset = this._floatAttr('avatar-vertical-offset');
+    if (name === 'avatar-scale' || name === 'avatar-vertical-offset'
+      || name === 'avatar-scale-mobile' || name === 'avatar-vertical-offset-mobile') {
+      this.avatarScaleConfig = this._computeScaleConfig();
       // Re-applies to the currently loaded avatar immediately — no reload needed.
+      this.avatarManager?.setTransform(this.avatarScaleConfig);
+    }
+    if (name === 'avatar-mobile-breakpoint') {
+      this._bindMobileWatcher();
+      this.avatarScaleConfig = this._computeScaleConfig();
       this.avatarManager?.setTransform(this.avatarScaleConfig);
     }
   }
@@ -124,6 +168,8 @@ connectedCallback() {
     if (this._connected) return;
     this._connected = true;
     this.instanceId = this.getAttribute('instance') || 'default';
+    this._bindMobileWatcher();
+    this.avatarScaleConfig = this._computeScaleConfig();
     this.classList.add('avatar-model');
     this.render();
     this.canvas = this.querySelector('.avatar-canvas');
@@ -140,6 +186,11 @@ connectedCallback() {
   disconnectedCallback() {
     this._connected = false;
     this._disposed = true;
+
+    if (this._mobileMq) {
+      this._mobileMq.removeEventListener('change', this._onMobileMqChange);
+      this._mobileMq = null;
+    }
 
     this.controller?.destroy();
 

@@ -1,176 +1,101 @@
-import * as THREE from 'three';
 
-// Define the exact hardware shape keys your pure .glb model uses to build each expression
+
 const COMBINED_EXPRESSIONS = {
-       happy: {
-        // --- 1. CONVERSATIONAL SOFT SMILE ---
-        // Lowered weights prevent the lips from stretching into an unnatural grin
+    happy: {
         mouthSmileLeft: 0.60,       
         mouthSmileRight: 0.60,
-        mouthSmile: 0.5, 
-               // Blends the unified smile shape smoothly
-
-        // --- 2. REMOVED GUM EXPOSITION KEYS ---
-        mouthUpperUpLeft: 0.3,      // REMOVED: Stops the upper lip from exposing gums
-        mouthUpperUpRight: 0.3,     // REMOVED: Stops the upper lip from exposing gums
-
-        // --- 3. RE-SHAPING THE LIP LINES NATURALLY ---
-        mouthDimpleLeft: 0.30,      // Softens the corners inward so the smile looks warm
-        mouthDimpleRight: 0.30,
-        mouthLowerDownLeft: 0.2,   // Gently relaxes the lower lip downward for a soft parting look
-        mouthLowerDownRight: 0.2,
-
-        // --- 4. GENUINE SMILE EYE BLENDING ("DUCHENNE SMILE") ---
-        // Pushing cheeks and squinting slightly completes a real smile, avoiding dead eyes
-        cheekSquintLeft: 0.4,      // Lowered to prevent puffing up the face too much
-        cheekSquintRight: 0.4,
-        eyeSquintLeft: 0.3,        // Softly narrows the lower eyelids naturally
-        eyeSquintRight: 0.3,
-        browInnerUp: 0.3           // Minimal, gentle lift to open up the expression
+        mouthSmile: 1.0,
+        mouthUpperUpLeft: 0.30,      
+        mouthUpperUpRight: 0.30,     
+        mouthDimpleLeft: 0.32,      // Asymmetric lift for organic feel
+        mouthDimpleRight: 0.28,
+        mouthLowerDownLeft: 0.20,   
+        mouthLowerDownRight: 0.20,
+        cheekSquintLeft: 0.40,      
+        cheekSquintRight: 0.40,
+        eyeSquintLeft: 0.52,        // Asymmetric eye compression
+        eyeSquintRight: 0.48,       
+        browInnerUp: 0.60           
     },
 
     sad: {
-        browDownLeft: 0.20,
-        browDownRight: 0.20,
-        browOuterUpLeft: 0.65,      // Pulls outer brows up to create the "worried/sad" angle
-        browOuterUpRight: 0.65,
-        mouthFrownLeft: 0.80,       // Heavy down-pull on mouth corners
-        mouthFrownRight: 0.80,
-        mouthShrugLower: 0.45,      // Pushes lower lip upward into a subtle pouting depth
-        mouthDimpleLeft: 0.30,      // Dimples the mouth corners inward slightly to reinforce sadness
-        mouthDimpleRight: 0.30,
-        eyeSquintLeft: 0.25,        // Saddens the eyes by slightly closing lower lids
-        eyeSquintRight: 0.25
+        browInnerUp: 0.85,          
+        browOuterUpLeft: 0.78,      // Broken symmetry on brow worry lines
+        browOuterUpRight: 0.72,     
+        eyeSquintLeft: 0.40,
+        eyeSquintRight: 0.40,
+        eyeBlinkLeft: 0.28,         // Asymmetric droop for defeated eyes
+        eyeBlinkRight: 0.23,        
+        mouthFrownLeft: 0.95,       
+        mouthFrownRight: 0.95,
+        mouthShrugLower: 0.70,      
+        mouthDimpleLeft: 0.40,      
+        mouthDimpleRight: 0.40
     },
-    surprised: {
-        eyeWideLeft: 1.0,           // Maximum wide-eyed shock exposure
-        eyeWideRight: 1.0,
-        browInnerUp: 0.90,          // Lifts inner brows straight up high
-        browOuterUpLeft: 0.70,      // Arch the outer brows outward
-        browOuterUpRight: 0.70,
-        jawOpen: 0.35,              // Drops jaw down for an open-mouthed look
-        mouthFunnel: 0.25           // Forms mouth layout into an 'O' circle shape
-    },
+
     angry: {
-        // --- 1. FOCUSED, HUMAN ANGER BROW ---
-        // Lowered from 1.0 to 0.75 to prevent unnatural forehead collapsing
-        browDownLeft: 0.75,          
-        browDownRight: 0.75,
-        browInnerUp: 0.0,
-        
-        // --- 2. PIERCING GLARE ---
-        eyeSquintLeft: 0.50,        // Narrows the eyes into a sharp, focused stare
-        eyeSquintRight: 0.50,
-
-        // --- 3. CLENCHED, RECTANGULAR LIPS (REPLACES THE APELIK LOOK) ---
-        // Pulling the mouth corners tight horizontally into a tense, flat line
-        mouthStretchLeft: 0.40,     
-        mouthStretchRight: 0.40,
-        mouthFrownLeft: 0.45,       // Subtle downturn to anchor the frustration
-        mouthFrownRight: 0.45,
-
-        // --- 4. TIGHT JAW COMPRESSION ---
-        // Rolls the lips inward tightly over the teeth to mimic a real clenched jaw
-        mouthRollLower: 0.40,       
-        mouthRollUpper: 0.40,       
-        
-        // --- 5. CLEAN REMOVALS ---
-        noseSneerLeft: 0.0,         // REMOVED: Completely stops face bunching
-        noseSneerRight: 0.0,        // REMOVED: Completely stops face bunching
-        mouthLowerDownLeft: 0.0,    // REMOVED: Stops the chin from stretching out
-        mouthLowerDownRight: 0.0
+        browDownLeft: 0.82,         // Asymmetric frustration furrow
+        browDownRight: 0.78,        
+        eyeSquintLeft: 0.78,        // Pierce glare asymmetry
+        eyeSquintRight: 0.72,       
+        mouthFrownLeft: 0.50,       
+        mouthFrownRight: 0.50,
+        mouthStretchLeft: 0.45,     
+        mouthStretchRight: 0.45
     },
 
-       scared: {
-        // --- 1. NATURAL HORROR BROW ARCH ---
-        browInnerUp: 0.85,          // Lifts the center inner brows up in a natural fear pinch
-        browDownLeft: 0.60,         // Softly pulls the outer brows downward
-        browDownRight: 0.60,
-        browOuterUpLeft: 0.0,
-        browOuterUpRight: 0.0,
+    surprised: {
+        eyeWideLeft: 1.0,           
+        eyeWideRight: 1.0,
+        browInnerUp: 0.90,          
+        browOuterUpLeft: 0.72,      // Natural asymmetric arching
+        browOuterUpRight: 0.68,     
+        jawOpen: 0.35,              
+        mouthOpen: 0.45,            
+        mouthFunnel: 0.25,          
+        mouthPucker: 0.15           
+    },
 
-        // --- 2. THE PANICKED EYE GLARE ---
-        eyeWideLeft: 0.85,           // Wide eyes, but slightly softened from 1.0 to look less bug-eyed
-        eyeWideRight: 0.85,
-        eyeSquintLeft: 0.0,
-        eyeSquintRight: 0.0,
-
-        // --- 3. THE RECTANGULAR, ANTI-CREEPY PANIC MOUTH ---
-        mouthStretchLeft: 0.80,     // Pulls the mouth wide horizontally
+    scared: {
+        browInnerUp: 0.85,          
+        browDownLeft: 0.62,         // Asymmetric fear pull
+        browDownRight: 0.58,        
+        eyeWideLeft: 0.88,          // Panicked eye glare asymmetry
+        eyeWideRight: 0.82,         
+        mouthStretchLeft: 0.80,     
         mouthStretchRight: 0.80,
-        
-        // REMOVED ALL SMILE KEYS TO KILL THE CREEPY JOKER LOOK!
-        mouthSmileLeft: 0.0,       
-        mouthSmileRight: 0.0,
-
-        // --- 4. LIP ROLLING TO FLATTEN THE LINES CONVERSATIONALLY ---
-        // These tuck the lips tightly over the teeth to flatten the corners naturally
         mouthRollLower: 0.50,       
         mouthRollUpper: 0.40,       
-
-        // --- 5. SOFTENED OPEN JAW VERTICES ---
-        mouthUpperUpLeft: 0.25,     // Soft vertical lift
-        mouthUpperUpRight: 0.25,
-        mouthLowerDownLeft: 0.25,   // Soft vertical drop
-        mouthLowerDownRight: 0.25,
-        
-        jawOpen: 0.18,              // Lowered from 0.28 to 0.18 to prevent a gaping, hollow mouth look
-        jawForward: 0.10,           // Subtle natural alignment thrust
-
-        // --- 6. CLEAN SPEECH AUDIO ALIGNMENT ---
+        jawOpen: 0.18,              
+        mouthOpen: 0.18,            
+        jawForward: 0.10,           
         viseme_FF: 0.30,            
         viseme_CH: 0.20,            
-        mouthShrugLower: 0.20
+        mouthShrugLower: 0.20,
+        mouthPucker: 0.0,           // Clears speech pucker tear
+        mouthFunnel: 0.0            // Clears speech funnel tear
     },
+
     relaxed: {
-        // --- 1. EASED, NATURAL RESTING EYELIDS (NO PINCHING) ---
-        // We drop eyeSquint significantly to stop the lower lid from pinching upward.
-        // Instead, we use eyeBlink at a safe threshold (0.28) to gently droop 
-        // the upper eyelid downward for a natural, peaceful resting gaze.
-        eyeSquintLeft: 0.2,        // Kept very low to preserve natural eye shape
-        eyeSquintRight: 0.2,       
-        eyeBlinkLeft: 0.2,         // Soft upper-eyelid droop (perfect for a relaxed look)
-        eyeBlinkRight: 0.2,        
-        eyeLookDownLeft: 0.3,      // Gentle downward gaze to remove the rigid lens stare
-        eyeLookDownRight: 0.3,
-
-        // --- 2. SMOOTH, SERENE FOREHEAD LAYOUT ---
-        // Softened values prevent the forehead mesh from bunching up.
-        browDownLeft: 0.3,         
-        browDownRight: 0.3,        
-        browInnerUp: 0.3,          // Very slight lift to keep the expression warm
-
-        // --- 3. SUBTLE SKINNED CHEEK CUSHION ---
-        cheekSquintLeft: 0.3,      // Minimal pressure under the eye socket
-        cheekSquintRight: 0.3,
-
-        // --- 4. THE LOOSE PARTED SILHOUETTE MOUTH ---
-        // Maintained the highly visible parted lip structure from before, 
-        // as this breaks the neutral posture instantly without altering the eyes.
-        jawOpen: 0.5,              // Visible, clean gap between the lips
-        mouthPressLeft: 0.2,       
-        mouthPressRight: 0.15,
-        mouthFrownLeft: 0.1,       // Soft organic slack on the left corner
-        mouthFrownRight: 0.1,
-        mouthStretchLeft: 0.2,     
-        mouthStretchRight: 0.15,
-        mouthSmileRight: 0.2,      // Tiny micro-lift keeps the resting face serene
-
-        // --- 5. SYSTEM WIPES ---
-        mouthSmileLeft: 0.0,
-        mouthDimpleLeft: 0.0,      
-        mouthDimpleRight: 0.0,
-        eyeWideLeft: 0.0,
-        eyeWideRight: 0.0
+        eyeBlinkLeft: 0.42,         // Sleepy asymmetric gravity drop
+        eyeBlinkRight: 0.46,        
+        eyeLookDownLeft: 0.38,      
+        eyeLookDownRight: 0.42,     
+        browDownLeft: 0.18,         // Slacked micro-asymmetry
+        browDownRight: 0.12,        
+        jawOpen: 0.25,              
+        mouthOpen: 0.35,            
+        mouthSmileRight: 0.25,      // Asymmetric resting loop
+        mouthSmileLeft: 0.20,
+        mouthSmile: 0.20          
     },
 
-
-    neutral: {}                     // Smooth return loop to clear face canvas values
+    neutral: {}
 };
 
 
 const EMOTION_ALIASES = {
-    excited: 'happy', loving: 'happy', worried: 'sad', confused: 'surprised', thinking: 'relaxed',  fear: 'scared',      // Map backend 'fear' to scared
+    excited: 'happy', loving: 'happy', worried: 'sad', confused: 'surprised', thinking: 'relaxed',  fear: 'scared',  
     afraid: 'scared'
 };
 

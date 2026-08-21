@@ -41,6 +41,8 @@ Html
         app-id="your-app-id"
         avatar-scale="1"
         avatar-vertical-offset="-1.25"
+        avatar-scale-mobile="0.75"
+        avatar-vertical-offset-mobile="-0.6"
       ></avatar-model>
       <avatar-captions></avatar-captions>
     </div>
@@ -82,6 +84,8 @@ export default function AvatarWidget() {
           app-id="your-app-id"
           avatar-scale="1"
           avatar-vertical-offset="-1.25"
+          avatar-scale-mobile="0.75"
+          avatar-vertical-offset-mobile="-0.6"
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
         ></avatar-model>
         <avatar-captions></avatar-captions>
@@ -216,6 +220,29 @@ either fail outright or hang indefinitely. `<avatar-model>` handles both:
 - Retrying goes through the exact same code path as a normal avatar selection — no separate/divergent retry logic to keep in sync.
 
 ---
+
+## Responsive Scale (Mobile vs Desktop)
+
+`<avatar-model>` supports separate scale/offset values for narrow viewports,
+so the avatar doesn't render too zoomed-in on phones:
+
+```html
+<avatar-model
+  avatar-scale="1"
+  avatar-vertical-offset="-1.25"
+  avatar-scale-mobile="0.75"
+  avatar-vertical-offset-mobile="-0.6"
+></avatar-model>
+```
+
+- `avatar-scale-mobile` / `avatar-vertical-offset-mobile` — optional. Applied
+  instead of `avatar-scale`/`avatar-vertical-offset` whenever the viewport
+  matches the mobile breakpoint. Each falls back to its non-mobile
+  counterpart if left unset.
+- `avatar-mobile-breakpoint` — optional, defaults to `640` (pixels). Sets the
+  `max-width` cutoff used to decide "mobile."
+- Reacts live to resize/rotation — no reload needed, same as the base
+  `avatar-scale`/`avatar-vertical-offset` attributes.
 
 ## Custom Input Elements
 
