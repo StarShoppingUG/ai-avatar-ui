@@ -17,12 +17,7 @@ export function resolveThumbnailUrl(filename) {
   return resolveAssetUrl(`/assets/thumbnails/${filename}`);
 }
 
-// Avatar .glb models are hosted separately (Netlify)
-export const AVATAR_CDN_BASE = import.meta.env.VITE_AVATAR_CDN_BASE;
-if (!AVATAR_CDN_BASE) {
-  throw new Error('Missing VITE_AVATAR_CDN_BASE in .env');
-}
-
+// Avatar .glb models
 export function resolveAvatarUrl(filename) {
-  return new URL(String(filename).replace(/^\//, ''), AVATAR_CDN_BASE).href;
+  return resolveAssetUrl(`/assets/models/${filename}`);
 }
