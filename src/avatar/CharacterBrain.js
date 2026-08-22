@@ -102,13 +102,19 @@ export class CharacterBrain {
      * @param {string} persona
      * @param {string} [avatarPersona] - avatar specialty text that should be preserved in AI requests.
      * @param {{en?: string, ja?: string}} [voices] - optional per-character
-     *   voice override (full Edge-TTS neural voice names). Omit a key to use
-     *   the backend's default voice for that language.
+     *   voice override (full Edge-TTS neural voice names). The backend now
+     *   always writes a single mixed-language reply with one audio track,
+     *   resolved from `voices.en` only — pass the avatar's `voiceBoth`
+     *   value (a Multilingual Edge-TTS voice, e.g.
+     *   "en-US-AvaMultilingualNeural") here so it can actually speak both
+     *   languages. `voices.ja` is accepted for backward compatibility but
+     *   is not used to pick which track plays. Omit a key to use the
+     *   backend's default voice.
      * @param {string} [characterName] - the currently-selected AVATAR's id.
      *   The backend uses this for the LLM's self-identification.
      * @param {string} [speakLanguage] - user's speaking language
      */
-    async ask(text, persona, avatarPersona = null, voices = {}, characterName = null, speakLanguage = 'en', teachingMode = false) {
+    async ask(text, persona, avatarPersona = null, voices = {}, characterName = null, speakLanguage = 'en') {
         const res = await fetch(`${this.backend}/ask`, {
             method: 'POST',
             headers: this._jsonHeaders(),
@@ -121,7 +127,6 @@ export class CharacterBrain {
                 voice_ja: voices.ja || null,
                 speak_language: speakLanguage === 'ja' ? 'ja' : 'en',
                 timezone: this.userTimezone,  // Send timezone for real-time date awareness
-                teaching_mode: Boolean(teachingMode),
             }),
         });
         if (!res.ok) throw new Error(`Backend /ask failed (${res.status})`);

@@ -292,6 +292,7 @@ class AvatarController {
       const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
       if (!avatar || !voiceName) return;
       if (lang === "ja") avatar.voiceJa = voiceName;
+      else if (lang === "both") avatar.voiceBoth = voiceName;
       else avatar.voiceEn = voiceName;
       this.emitStatus("Voice updated.", "green");
     });
@@ -394,6 +395,7 @@ class AvatarController {
       personaJa: avatar.personaJa || avatar.persona,
       voiceEn: avatar.voiceEn,
       voiceJa: avatar.voiceJa,
+      voiceBoth: avatar.voiceBoth,
       thumbnail: avatar.thumbnail,
       isCustomPersona: hasPersonaOverride(avatar.id, this.instanceId),
     });
@@ -405,6 +407,18 @@ class AvatarController {
 
     const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
     const speakLanguage = this.responseLanguage === "ja" ? "ja" : "en";
+    // voiceBoth (the multilingual voice) is only correct for "both" mode,
+    // where a single track has to speak mixed English+Japanese. "en"/"ja"
+    // mode are single-language conversations and should use the avatar's
+    // dedicated native voice for that language instead — CharacterBrain.ask()
+    // only reads the `en` slot into the backend's voice_en field, so that's
+    // the one that actually needs to vary here.
+    const activeVoice =
+      this.responseLanguage === "ja"
+        ? avatar?.voiceJa
+        : this.responseLanguage === "both"
+          ? avatar?.voiceBoth
+          : avatar?.voiceEn;
     let data;
     let reachedBackend = true;
 
@@ -413,10 +427,9 @@ class AvatarController {
         text,
         "Default",
         avatar?.persona,
-        { en: avatar?.voiceEn, ja: avatar?.voiceJa },
+        { en: activeVoice, ja: activeVoice },
         avatar?.name, // send the display name, not the id
         speakLanguage,
-        Boolean(avatar?.teachingMode),
       );
     } catch (error) {
       reachedBackend = false;
@@ -577,9 +590,9 @@ class AvatarController {
 
     // All three response-language modes now funnel through processAudioQueue
     // so avatar:speaking (and the duration-based timing it relies on) fires
-    // consistently — previously 'en'/'ja' replies called emotionSystem.apply()
-    // directly and never went through the queue, so inputs never actually
-    // got disabled for the (default) single-language case.
+    // consistently. 'both' used to queue the separate en and ja tracks back
+    // to back; the backend now returns one shared track/text for both slots,
+    // so 'both' queues a single entry too, same as 'en'/'ja' do.
     if (selectedLang === "en") {
       this.audioQueue.push({
         ...data,
@@ -598,14 +611,8 @@ class AvatarController {
       this.audioQueue.push({
         ...data,
         primary: "en",
-        audio_url: data.audio_url_en || "",
-        visemes: data.visemes_en || [],
-      });
-      this.audioQueue.push({
-        ...data,
-        primary: "ja",
-        audio_url: data.audio_url_ja || "",
-        visemes: data.visemes_ja || [],
+        audio_url: data.audio_url || data.audio_url_en || data.audio_url_ja || "",
+        visemes: data.visemes || data.visemes_en || data.visemes_ja || [],
       });
     }
     this.processAudioQueue();
@@ -795,9 +802,10 @@ class AvatarController {
     if (this.audioQueue.length > 0) {
       this.processAudioQueue();
     } else {
-      // Only clear the "speaking" state once the whole queue (both the en
-      // and ja variants of a reply) has finished — otherwise inputs would
-      // briefly re-enable between the two clips in the same turn.
+      // Only clear the "speaking" state once the whole queue has finished —
+      // otherwise inputs would briefly re-enable mid-reply if more than one
+      // entry is queued (e.g. a reply that lands while a prior one is still
+      // playing).
       this.emit("speaking", { active: false });
     }
   }

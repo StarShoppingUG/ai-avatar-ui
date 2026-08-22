@@ -516,8 +516,16 @@ updateProfile(detail = {}) {
       return;
     }
 
-    const showEn = responseLanguage === "en" || responseLanguage === "both";
-    const showJa = responseLanguage === "ja" || responseLanguage === "both";
+    // "both" mode used to store two genuinely independent replies (an
+    // English-only conversation and a Japanese-only conversation) in
+    // text_en/text_ja, so showing both bubbles was correct. The backend now
+    // writes a single mixed-language reply into both fields (see
+    // reply_ja = reply_en in app.py's /ask handler), so "both" must render
+    // exactly ONE bubble per assistant turn — showing both fields today
+    // would just duplicate the same sentence twice in a row.
+    const showEn = responseLanguage === "en";
+    const showJa = responseLanguage === "ja";
+    const showMixed = responseLanguage === "both";
 
     list.forEach((entry) => {
       try {
@@ -529,21 +537,28 @@ updateProfile(detail = {}) {
           : "";
         const speakerName = entry.character_name || avatarName || "";
         if (entry.role === "assistant") {
-          const preferEn = showEn && entry.text_en;
-          const preferJa = showJa && entry.text_ja;
-          if (preferEn)
-            this.appendHistoryItem("avatar", entry.text_en, time, speakerName);
-          if (preferJa)
-            this.appendHistoryItem("avatar", entry.text_ja, time, speakerName);
-          if (!preferEn && !preferJa) {
-            const fallback =
-              entry.text_en ||
-              entry.text_ja ||
-              entry.text ||
-              entry.content ||
-              "";
-            if (fallback)
-              this.appendHistoryItem("avatar", fallback, time, speakerName);
+          if (showMixed) {
+            // Single mixed-language reply — one bubble, prefer text_en but
+            // fall back to whichever field actually has content.
+            const mixed = entry.text_en || entry.text_ja || entry.text || entry.content || "";
+            if (mixed) this.appendHistoryItem("avatar", mixed, time, speakerName);
+          } else {
+            const preferEn = showEn && entry.text_en;
+            const preferJa = showJa && entry.text_ja;
+            if (preferEn)
+              this.appendHistoryItem("avatar", entry.text_en, time, speakerName);
+            if (preferJa)
+              this.appendHistoryItem("avatar", entry.text_ja, time, speakerName);
+            if (!preferEn && !preferJa) {
+              const fallback =
+                entry.text_en ||
+                entry.text_ja ||
+                entry.text ||
+                entry.content ||
+                "";
+              if (fallback)
+                this.appendHistoryItem("avatar", fallback, time, speakerName);
+            }
           }
         } else {
           this.appendHistoryItem(
