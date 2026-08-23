@@ -13,26 +13,22 @@ import { DEFAULT_AVATAR_NAME, getAvatar as lookupAvatar } from '../avatar/Avatar
 import { BACKEND, resolveAssetUrl } from './constants.js';
 import { AvatarController } from './AvatarController.js';
 
+/**
+ * <avatar-model> — renders the 3D scene (Three.js canvas, camera, lighting),
+ * loads/swaps avatar GLB files, and drives animation/lip-sync from backend
+ * behavior data via AvatarController. Shows a retry prompt on load failure.
+ */
 class AvatarModel extends HTMLElement {
   constructor() {
     super();
     this._connected = false;
-  this.backend = this.getAttribute('backend') || BACKEND;
+    this.backend = this.getAttribute('backend') || BACKEND;
     this.currentAvatarId = this.getAttribute('avatar-id') || DEFAULT_AVATAR_NAME;
     this.instanceId = this.getAttribute('instance') || 'default';
 
-    // The only avatar-sizing knobs exposed to consumers: an overall scale
-    // multiplier and a vertical position offset. Undefined (unset attribute)
-    // is intentional — it lets AvatarScale.apply() fall back to its own
-    // tuned defaults rather than us re-declaring them here. Width/height are
-    // handled separately below (avatar-width/avatar-height attributes,
-    // container-fill by default) — they're layout, not model scale.
-    //
-    // avatar-scale-mobile / avatar-vertical-offset-mobile are optional
-    // overrides used only when the viewport matches avatar-mobile-breakpoint
-    // (default 640px) — see _computeScaleConfig(). Each falls back to the
-    // non-mobile value when unset, so a consumer that only sets the base
-    // attributes behaves exactly as before.
+    // Scale/offset default to undefined so AvatarScale.apply() uses its own
+    // tuned defaults. The -mobile variants only apply below the breakpoint
+    // set by avatar-mobile-breakpoint (see _computeScaleConfig()).
     this._mobileMq = null;
     this._isMobile = false;
     this.avatarScaleConfig = this._computeScaleConfig();
@@ -63,9 +59,8 @@ class AvatarModel extends HTMLElement {
     return Number.isNaN(value) ? undefined : value;
   }
 
-  /** Resolves the effective {scale, verticalOffset} for the current viewport,
-   * preferring the -mobile attribute when one is set and the breakpoint
-   * currently matches, otherwise falling back to the base attribute. */
+  /** Resolves {scale, verticalOffset} for the current viewport, preferring
+   * the -mobile attribute when the breakpoint currently matches. */
   _computeScaleConfig() {
     const base = {
       scale: this._floatAttr('avatar-scale'),
@@ -80,8 +75,7 @@ class AvatarModel extends HTMLElement {
     };
   }
 
-  /** Starts (or restarts, if the breakpoint attribute changed) watching for
-   * mobile/desktop transitions and re-applies scale config live on change. */
+  /** Watches for mobile/desktop breakpoint transitions and re-applies scale live. */
   _bindMobileWatcher() {
     if (this._mobileMq) {
       this._mobileMq.removeEventListener('change', this._onMobileMqChange);
@@ -97,28 +91,29 @@ class AvatarModel extends HTMLElement {
     this._mobileMq.addEventListener('change', this._onMobileMqChange);
   }
 
-static get observedAttributes() {
-    // avatar-width / avatar-height are OPTIONAL. By default the element
-    // fills its container (see the injected CSS above) — that's the
-    // recommended way to size it. Only set these attributes if you
-    // specifically want an inline-style override that beats your
-    // stylesheet (inline style has higher specificity than any CSS
-    // selector). Otherwise just size the container, or target
-    // `avatar-model` directly in your own CSS.
-    //
-    // avatar-scale is a uniform multiplier on the model's normalized size
-    // (1 = default size). avatar-vertical-offset shifts the model up/down
-    // in the scene (more negative = lower). Both are optional and take
-    // effect immediately on the currently loaded avatar.
-    //
-    // app-id / user-id identify which third-party host app (tenant) and
-    // which of that app's end-users this widget instance belongs to — see
-    // CharacterBrain.js. Observed so a host app setting these slightly
-    // after connect (e.g. after an async auth check) still takes effect.
-    return ['avatar-width', 'avatar-height', 'backend', 'app-id', 'user-id', 'avatar-scale', 'avatar-vertical-offset', 'avatar-scale-mobile', 'avatar-vertical-offset-mobile', 'avatar-mobile-breakpoint', 'instance'];
+  static get observedAttributes() {
+    // avatar-width/avatar-height are optional inline-style overrides; the
+    // element fills its container by default. app-id/user-id/settings-scope
+    // /settings-group are observed so a host app that sets them slightly
+    // after connect (e.g. post-auth) still takes effect.
+    return [
+      'avatar-width',
+      'avatar-height',
+      'backend',
+      'app-id',
+      'user-id',
+      'settings-scope',
+      'settings-group',
+      'avatar-scale',
+      'avatar-vertical-offset',
+      'avatar-scale-mobile',
+      'avatar-vertical-offset-mobile',
+      'avatar-mobile-breakpoint',
+      'instance',
+    ];
   }
 
-attributeChangedCallback(name, oldValue, newValue) {
+  attributeChangedCallback(name, oldValue, newValue) {
     if (name === 'avatar-width') {
       this.style.width = newValue || '';
       this.resize();
@@ -135,13 +130,21 @@ attributeChangedCallback(name, oldValue, newValue) {
       this.instanceId = newValue;
       this._recreateBrain();
     }
-    if (name === 'app-id' || name === 'user-id') {
+    if (
+      name === 'app-id' ||
+      name === 'user-id' ||
+      name === 'settings-scope' ||
+      name === 'settings-group'
+    ) {
       this._recreateBrain();
     }
-    if (name === 'avatar-scale' || name === 'avatar-vertical-offset'
-      || name === 'avatar-scale-mobile' || name === 'avatar-vertical-offset-mobile') {
+    if (
+      name === 'avatar-scale' ||
+      name === 'avatar-vertical-offset' ||
+      name === 'avatar-scale-mobile' ||
+      name === 'avatar-vertical-offset-mobile'
+    ) {
       this.avatarScaleConfig = this._computeScaleConfig();
-      // Re-applies to the currently loaded avatar immediately — no reload needed.
       this.avatarManager?.setTransform(this.avatarScaleConfig);
     }
     if (name === 'avatar-mobile-breakpoint') {
@@ -151,20 +154,19 @@ attributeChangedCallback(name, oldValue, newValue) {
     }
   }
 
-  /** Rebuilds CharacterBrain with the current backend/app-id/user-id
-   * attributes. Called whenever any of the three changes after the element
-   * is already connected — otherwise a host app setting app-id/user-id
-   * slightly after connect (e.g. from an async auth check) would silently
-   * keep talking to the backend under the wrong tenant/user. */
+  /** Rebuilds CharacterBrain from current identity/scoping attributes, so a
+   * late attribute change never leaves it talking under a stale tenant/scope. */
   _recreateBrain() {
     if (!this.controller) return;
     this.controller.brain = new CharacterBrain(this.backend, this.instanceId, {
       appId: this.getAttribute('app-id') || undefined,
       userId: this.getAttribute('user-id') || undefined,
+      settingsScope: this.getAttribute('settings-scope') || undefined,
+      settingsGroup: this.getAttribute('settings-group') || undefined,
     });
   }
 
-connectedCallback() {
+  connectedCallback() {
     if (this._connected) return;
     this._connected = true;
     this.instanceId = this.getAttribute('instance') || 'default';
@@ -213,7 +215,7 @@ connectedCallback() {
     this.animationManager?.dispose();
   }
 
-render() {
+  render() {
     this.innerHTML = `
       <div class="avatar-frame">
         <canvas class="avatar-canvas avatar-canvas--loading" aria-label="Avatar canvas"></canvas>
@@ -238,10 +240,8 @@ render() {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
 
-    // Resolved against this script's own origin (see resolveAssetUrl in
-    // constants.js) rather than a bare root-relative path — otherwise this
-    // 404s silently whenever the bundle is embedded on a page hosted
-    // somewhere other than where these assets actually live.
+    // Resolved against this script's own origin so the HDR doesn't 404 when
+    // the bundle is embedded on a page hosted elsewhere.
     new RGBELoader().load(resolveAssetUrl('/assets/textures/sunset.hdr'), (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       this.scene.environment = texture;
@@ -270,25 +270,21 @@ render() {
       floorScreenFraction: 1.08,
     });
 
-    //BALANCED OVERHEAD LIGHTING SETUP (SOFTENED BRIGHTNESS)
-
-    // 1. Base Ambient Light (Lowered from 0.6 to 0.4 to bring back shadow depth)
+    // Soft ambient fill plus a front-left key and front-right fill light,
+    // tuned for face shadow depth without harsh contrast.
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
-    // 2. Softened Front-Left Key Light (Lowered intensity from 3.2 to 1.6)
     const frontLeftKey = new THREE.DirectionalLight(0xfff5ee, 1.6);
-    frontLeftKey.position.set(-2.0, 6.0, -3.8); 
+    frontLeftKey.position.set(-2.0, 6.0, -3.8);
     this.scene.add(frontLeftKey);
 
-    // 3. Softened Front-Right Fill Light (Lowered intensity from 1.5 to 0.8)
     const frontRightFill = new THREE.DirectionalLight(0xffffff, 0.8);
-    frontRightFill.position.set(2.0, 5.5, -3.8); 
+    frontRightFill.position.set(2.0, 5.5, -3.8);
     this.scene.add(frontRightFill);
 
     this.resize();
     this.animate();
   }
-
 
   bindResize() {
     if (typeof ResizeObserver !== 'undefined') {
@@ -304,7 +300,7 @@ render() {
     this.canvas?.classList.add('avatar-canvas--loading');
   }
 
-hideLoadingOverlay() {
+  hideLoadingOverlay() {
     this.loadingOverlay?.classList.remove('visible');
     this.canvas?.classList.remove('avatar-canvas--loading');
   }
@@ -322,10 +318,8 @@ hideLoadingOverlay() {
     this.errorOverlay?.setAttribute('aria-hidden', 'true');
   }
 
-  /** Re-attempts loading whatever avatar was last selected, going through
-   * the controller's normal selectAvatar() flow (not a separate path) so
-   * status text, avatar-loading events, and settings persistence all stay
-   * consistent with a regular selection. */
+  /** Retries via the controller's normal selectAvatar() flow, so status
+   * text and settings persistence stay consistent with a regular selection. */
   retryLoadAvatar() {
     if (!this.controller || this._retrying) return;
     this._retrying = true;
@@ -337,11 +331,11 @@ hideLoadingOverlay() {
     });
   }
 
-async loadAvatar(avatarId, avatarData) {
+  async loadAvatar(avatarId, avatarData) {
     const avatar = avatarData || lookupAvatar(avatarId, this.instanceId);
     if (!avatar) return false;
     this.controller?.emitStatus(`Loading ${avatar.name}…`, 'yellow');
-    this.hideErrorOverlay(); // clear any previous failed-load state before retrying
+    this.hideErrorOverlay();
     this.showLoadingOverlay();
 
     try {
@@ -351,72 +345,63 @@ async loadAvatar(avatarId, avatarData) {
         this.avatarScaleConfig
       );
 
-
       await this.attachEngines(this.currentAvatarModel, avatar.name);
 
       this.cameraFraming.resize();
       this.hideLoadingOverlay();
       return true;
-    }  catch (error) {
-console.error(`[avatar-model] Failed to load avatar "${avatar.name}":`, error);
-  this.currentAvatarModel = null;
-  this.expressionEngine = null;
-  this.lipSync = null;
-  this.animationManager = null;
-  this.emotionSystem = null;
-  // Red, not green — this IS an error state (blank 3D area), the previous
-  // green "Ready (no model)" made a failed load look successful.
-this.controller?.emitStatus('Avatar failed to load', 'red');
-  this.hideLoadingOverlay();
-  this.showErrorOverlay('This is most likely due to an unstable internet connection.');
-  return false;
-}
+    } catch (error) {
+      console.error(`[avatar-model] Failed to load avatar "${avatar.name}":`, error);
+      this.currentAvatarModel = null;
+      this.expressionEngine = null;
+      this.lipSync = null;
+      this.animationManager = null;
+      this.emotionSystem = null;
+      this.controller?.emitStatus('Avatar failed to load', 'red');
+      this.hideLoadingOverlay();
+      this.showErrorOverlay('This is most likely due to an unstable internet connection.');
+      return false;
+    }
   }
 
-async attachEngines(avatarModel, personaName) {
-  this.animationManager?.dispose();
-  this.animationManager = new AnimationManager();
+  async attachEngines(avatarModel, personaName) {
+    this.animationManager?.dispose();
+    this.animationManager = new AnimationManager();
 
-  if (this.expressionEngine) {
-    this.expressionEngine.setAvatarModel(avatarModel);
-  } else {
-    this.expressionEngine = new ExpressionEngine(avatarModel);
+    if (this.expressionEngine) {
+      this.expressionEngine.setAvatarModel(avatarModel);
+    } else {
+      this.expressionEngine = new ExpressionEngine(avatarModel);
+    }
+
+    this.lipSync = new LipSync(avatarModel, personaName);
+    this.lipSync.setExpressionEngine(this.expressionEngine);
+    this.animationManager.setExpressionEngine(this.expressionEngine);
+
+    const clipsReady = await this.animationManager.init(avatarModel);
+
+    this.avatarManager.expressionEngine = this.expressionEngine;
+    this.avatarManager.animationManager = this.animationManager;
+
+    // Re-point at the fresh engines instead of constructing a new
+    // EmotionSystem, so external references survive an avatar swap.
+    if (this.emotionSystem) {
+      this.emotionSystem.expression = this.expressionEngine;
+      this.emotionSystem.animation = this.animationManager;
+      this.emotionSystem.lipSync = this.lipSync;
+    } else {
+      this.emotionSystem = new EmotionSystem({
+        expression: this.expressionEngine,
+        animation: this.animationManager,
+        lipSync: this.lipSync,
+      });
+    }
+
+    this.expressionEngine.setExpression('neutral');
+
+    window.avatarManager = this.avatarManager;
+    window.emotionSystem = this.emotionSystem;
   }
-
-  this.lipSync = new LipSync(avatarModel, personaName);
-  
-  // Connect references across components cleanly
-  this.lipSync.setExpressionEngine(this.expressionEngine);
-  this.animationManager.setExpressionEngine(this.expressionEngine);
-
-  const clipsReady = await this.animationManager.init(avatarModel);
-
-
-  this.avatarManager.expressionEngine = this.expressionEngine;
-  this.avatarManager.animationManager = this.animationManager;
-
-  // --- THE DEFINITIVE PIPELINE SYNC FIX ---
-  // Re-instantiate or explicitly update properties so EmotionSystem holds live targets
-  if (this.emotionSystem) {
-    this.emotionSystem.expression = this.expressionEngine;
-    this.emotionSystem.animation = this.animationManager;
-    this.emotionSystem.lipSync = this.lipSync;
-  } else {
-    this.emotionSystem = new EmotionSystem({
-      expression: this.expressionEngine,
-      animation: this.animationManager,
-      lipSync: this.lipSync,
-    });
-  }
-
-  // Force an immediate layout reset on the freshly established references
-  this.expressionEngine.setExpression('neutral');
-
-  window.avatarManager = this.avatarManager;
-  window.emotionSystem = this.emotionSystem;
-}
-
-
 
   resize() {
     if (!this.renderer || !this.camera) return;
@@ -438,31 +423,25 @@ async attachEngines(avatarModel, personaName) {
     this.camera.updateProjectionMatrix();
     this.cameraFraming?.resize();
   }
+
   animate() {
     if (this._disposed) return;
     requestAnimationFrame(() => this.animate());
     const delta = this.clock.getDelta();
-    
-    // 1. Compute bone movements from Mixamo clips first
-    this.animationManager?.update(delta);
-    
-    // 2. LAYER PURE GEOMETRY EXPRESSIONS ON TOP OF BONE MANIPULATION
-    this.expressionEngine?.update(delta); // Calculates combined emotions
-    this.lipSync?.update(delta);         // Inject speech open additively on top
 
-    // 3. Render frame scene coordinates
+    // Bones first, facial morphs layered on top, then lip-sync additively.
+    this.animationManager?.update(delta);
+    this.expressionEngine?.update(delta);
+    this.lipSync?.update(delta);
+
     this.orbitControls?.update();
     this.renderer?.render(this.scene, this.camera);
   }
-
-
-
 
   get clock() {
     if (!this._clock) this._clock = new THREE.Clock();
     return this._clock;
   }
 }
-
 
 export { AvatarModel };

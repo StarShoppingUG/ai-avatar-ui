@@ -43,7 +43,7 @@ export const AVATAR_DATA = [
       "A structured and objective professional with the AI Interview Agent Team. Stationed in the Interview Room, he conducts candidate assessments, fine-tuned evaluations, and delivers structured feedback.",
     personaJa:
       "AI Interview Agentチームに所属する、客観的で構造化されたアプローチを得意とする面接官。面接室に常駐し、採用面接、詳細な評価、フィードバックの提供を担当します。",
-    voiceJa: "ja-JP-KeitaNeural",
+    voiceEn: "ja-JP-KeitaNeural",
     voiceJa: "ja-JP-KeitaNeural",
     voiceBoth: "en-US-BrianMultilingualNeural", // structured, professional — fits an interviewer
   },
@@ -502,38 +502,22 @@ export function getAvatar(avatarId, instanceId = 'default') {
   return override ? { ...base, ...override } : base;
 }
 
-// Overrides are keyed by "instanceId::avatarId" — the same avatar loaded in
-// two different <avatar-model instance="..."> groups gets fully independent
-// persona edits, never shared between them.
-//
-// Source of truth is now the BACKEND (see CharacterBrain's persona_overrides
-// field on /settings), not localStorage — so an edit made on a config page
-// is visible to every end user on the main page, not just the browser that
-// made the edit. This module just holds an in-memory cache of whatever the
-// controller last fetched/saved, so getAvatar()/getAllAvatars() can stay
-// synchronous. The controller (AvatarController or a settings-only
-// controller) is responsible for calling setPersonaOverridesCache() right
-// after CharacterBrain.getSettings() resolves, and again after any local
-// edit succeeds.
+// Keyed by "instanceId::avatarId" so the same avatar in two different
+// <avatar-model instance="..."> groups gets independent persona edits.
+// Backend (persona_overrides on /settings) is the source of truth; this is
+// just an in-memory cache the controller populates after getSettings()/saveSettings().
 let overridesCache = {};
 
 function overrideKey(instanceId, avatarId) {
   return `${instanceId}::${avatarId}`;
 }
 
-/** Called by a controller once it has fetched persona_overrides from the
- * backend (GET /settings). Replaces the entire cache. */
+/** Merges fetched persona_overrides into the cache (multiple instances can be active at once). */
 export function setPersonaOverridesCache(overrides = {}) {
-  // Merge, don't replace — multiple instances can be active in the same
-  // page session (confirmed: multi-instance settings-only pages are a
-  // supported case), and each instance's cache key is already namespaced
-  // "instanceId::avatarId", so a merge keeps them all coexisting safely.
   overridesCache = { ...overridesCache, ...(overrides || {}) };
 }
 
-/** Called by a controller to read the current cache back out, e.g. right
- * before calling saveSettings({ persona_overrides }) so it sends the full
- * updated object rather than just the one changed entry. */
+/** Returns the full cache, e.g. to send via saveSettings({ persona_overrides }). */
 export function getPersonaOverridesCache() {
   return overridesCache;
 }
@@ -542,10 +526,7 @@ export function hasPersonaOverride(avatarId, instanceId = 'default') {
   return Boolean(overridesCache[overrideKey(instanceId, avatarId)]);
 }
 
-/** @param {{persona?: string, personaJa?: string, name?: string}} fields — only pass what changed.
- * Updates the in-memory cache immediately (so the UI reflects it right away);
- * the caller is still responsible for persisting overridesCache to the
- * backend via CharacterBrain.saveSettings(). */
+/** Updates the in-memory cache immediately; caller still owns persisting via saveSettings(). */
 export function setPersonaOverride(avatarId, fields = {}, instanceId = 'default') {
   const key = overrideKey(instanceId, avatarId);
   overridesCache[key] = { ...(overridesCache[key] || {}), ...fields };
@@ -562,11 +543,7 @@ export function applyAvatarOverrides(avatars, overridesByAvatarId = {}) {
   });
 }
 
-/** Returns the full AVATAR_SOURCES roster with each avatar's saved
- * persona/name override (if any) merged in for the given instance — same
- * per-avatar merge getAvatar() does, just applied across the whole list at
- * once. Used to populate the "choose avatar" grid/picker so it reflects
- * live edits instead of the static AVATAR_DATA defaults. */
+/** Full roster with saved overrides merged in, for the "choose avatar" picker. */
 export function getAllAvatars(instanceId = 'default') {
   return AVATAR_SOURCES.map((avatar) => {
     const override = overridesCache[overrideKey(instanceId, avatar.id)];

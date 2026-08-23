@@ -44,18 +44,13 @@ class AvatarController {
     this._settingsLoaded = false;
   }
 
-  /** Registers a window listener and remembers it so destroy() can remove
-   * it later — every registerListeners() call must go through this instead
-   * of calling window.addEventListener directly, or it can't be cleaned up
-   * when this controller is torn down on disconnect. */
+  /** Registers a window listener via _listeners so destroy() can remove it later. */
   _on(eventName, handler) {
     window.addEventListener(eventName, handler);
     this._listeners.push({ eventName, handler });
   }
 
-  // Every emission from this controller goes through here so the instance
-  // id is always stamped automatically — call this instead of importing
-  // emitAvatarEvent directly anywhere in this class.
+  /** All emissions go through here so the instance id is stamped automatically. */
   emit(name, detail = {}) {
     emitAvatarEvent(name, detail, this.instanceId);
   }
@@ -71,8 +66,7 @@ class AvatarController {
     await this.loadPersistedSettings();
     this._settingsLoaded = true;
     this.emitAvailableAvatars();
-    // Safe to emit early — emitCurrentProfile() only reads AvatarSources
-    // data for this.currentAvatarId, it doesn't depend on model.loadAvatar()
+    // Safe before model.loadAvatar() — only reads AvatarSources data.
     this.emitCurrentProfile();
 
     const loadedOk = await this.selectAvatar(this.currentAvatarId, {
@@ -89,25 +83,18 @@ class AvatarController {
     }
   }
 
-  // Pulls this user's saved settings (last avatar, reply language, UI
-  // language) from the backend and applies them before the first avatar is
-  // selected — runs after syncInitialResponseLanguage() so it takes
-  // priority over that DOM-default fallback. Backend unreachable/offline
-  // just means falling back to the existing in-code defaults for this run;
-  // it's not fatal.
+  /** Loads saved settings (last avatar, languages) before the first avatar
+   * is selected. Runs after syncInitialResponseLanguage() so it takes
+   * priority. A failed/offline backend just means falling back to in-code
+   * defaults for this run — not fatal. */
   async loadPersistedSettings() {
-    // Default to "not first visit" so that if the backend is unreachable,
-    // we fail toward skipping the setup gate rather than blocking every
-    // visitor on it — matches the existing non-fatal handling of this call.
+    // Default to "not first visit" so an unreachable backend fails toward
+    // skipping the setup gate rather than blocking every visitor on it.
     this._isFirstVisit = false;
 
     // One retry after a short delay — covers a cold-started backend (e.g.
-    // Railway free tier spinning back up after ~30min idle) where the
-    // FIRST request can fail/timeout while the container wakes up, even
-    // though the backend is completely fine moments later. Without this,
-    // a cold start makes the app briefly show the default avatar/language
-    // for one load, which then "fixes itself" on the next reload — this
-    // retry absorbs that instead of surfacing it to the user at all.
+    // free-tier hosting waking up) where the first request can fail even
+    // though the backend is fine moments later.
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const settings = await this.brain.getSettings();
@@ -127,15 +114,10 @@ class AvatarController {
         ) {
           applyUiLanguageToApp(settings.ui_language, this.instanceId);
         }
-        // Populate the in-memory overrides cache from the backend's
-        // authoritative copy BEFORE emitAvailableAvatars()/emitCurrentProfile()
-        // run in init() — those read getAvatar()/getAllAvatars(), which read
-        // this cache synchronously. If this weren't set first, the very
-        // first render after a page load would show base (non-overridden)
-        // persona/name data for one frame, until some later action happened
-        // to refresh it.
+        // Must populate before init()'s emitAvailableAvatars()/emitCurrentProfile()
+        // run, since those read getAvatar()/getAllAvatars() synchronously off this cache.
         setPersonaOverridesCache(settings.persona_overrides || {});
-        return; // success — no retry needed
+        return;
       } catch (error) {
         const isLastAttempt = attempt === 1;
         console.error(
@@ -146,9 +128,6 @@ class AvatarController {
           error,
         );
         if (!isLastAttempt) {
-          // Brief pause before retrying — gives a cold-starting backend a
-          // moment to actually finish waking up rather than hammering it
-          // again instantly.
           await new Promise((resolve) => setTimeout(resolve, 2500));
         }
       }
@@ -191,8 +170,7 @@ class AvatarController {
 
       const fields = {};
 
-      // Name isn't translated — it's a proper noun, shared across both
-      // languages, so it's just stored as-is.
+      // Name is a proper noun, shared across languages — not translated.
       if (name !== undefined) {
         fields.name = name;
       }
@@ -217,11 +195,7 @@ class AvatarController {
       }
 
       setPersonaOverride(targetId, fields, this.instanceId);
-      // Send the FULL overrides cache, not just this one entry — /settings
-      // stores persona_overrides as a full replace, not a merge (see
-      // save_settings() on the backend). Sending only {targetId: fields}
-      // would silently wipe every other avatar's saved override on this
-      // instance the next time anyone saves anything.
+      // Full cache, not just this entry — /settings stores persona_overrides as a full replace.
       this.brain
         .saveSettings({ persona_overrides: getPersonaOverridesCache() })
         .catch(() => {});
@@ -247,11 +221,7 @@ class AvatarController {
         this.brain
           .saveSettings({ response_language: language })
           .catch(() => {});
-        // Rebroadcast so every <avatar-settings> panel watching this
-        // instance (there can now be more than one, e.g. a settings-only
-        // page open alongside the display page) updates its own dropdown
-        // to reflect the change — avatar-select/persona-edit already do
-        // this; response-language was the one handler that didn't.
+        // Rebroadcast so every <avatar-settings> panel watching this instance updates its dropdown.
         this.emitAvailableAvatars();
       }
     });
@@ -339,14 +309,9 @@ class AvatarController {
       return;
     }
 
-    // lookupAvatar() falls back to AVATAR_SOURCES[0] whenever avatarId
-    // doesn't match a known avatar (e.g. a typo'd default/persisted id).
-    // If we blindly stored the requested avatarId here, currentAvatarId
-    // would silently diverge from the avatar that's actually loaded —
-    // breaking the settings dropdown selection and keying chat history
-    // lookups to an id the backend never saw. Storing avatar.name instead
-    // means currentAvatarId always reflects reality, and a mismatch is
-    // surfaced immediately rather than failing silently.
+    // lookupAvatar() falls back to AVATAR_SOURCES[0] for an unknown id.
+    // Store avatar.id (not the requested avatarId) so currentAvatarId
+    // always reflects what's actually loaded, and log any mismatch.
     if (avatar.id !== avatarId) {
       console.warn(
         `[avatar-init] selectAvatar: unknown avatarId "${avatarId}", falling back to "${avatar.name}"`,
@@ -366,26 +331,21 @@ class AvatarController {
     const loaded = await this.model.loadAvatar(avatarId, avatar);
 
     this.emit("avatar-loading", { active: false });
-    // Only announce "Ready" on an actual success — loadAvatar() already
-    // emitted its own red error status on failure; overwriting it here
-    // unconditionally was exactly what made a failed/blank load look fine.
+    // Only announce "Ready" on actual success — loadAvatar() already emits its own error status on failure.
     if (loaded) {
       this.emitStatus("Ready", "green");
     }
-    // Lets avatar-inputs disable the textarea/mic/send while the model is
-    // broken, and re-enable them once a retry succeeds.
+    // Lets avatar-inputs disable/re-enable the textarea/mic/send with the model's health.
     this.emit("load-error", { active: !loaded });
 
-    // Switching avatars means the chat history panel should now show this
-    // avatar's own past messages, not whatever the previous avatar had.
+    // Switching avatars means the chat history panel should show this avatar's own history.
     this.refreshHistory();
 
     return loaded;
   }
 
-  /** Emits update-profile for the currently-selected avatar, including
-   * whether it currently has a saved persona override (drives the settings
-   * panel's "Reset to default" button enabled/disabled state). */
+  /** Emits update-profile for the current avatar, including whether it has
+   * a saved persona override (drives the "Reset to default" button state). */
   emitCurrentProfile() {
     const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
     if (!avatar) return;
@@ -407,12 +367,8 @@ class AvatarController {
 
     const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
     const speakLanguage = this.responseLanguage === "ja" ? "ja" : "en";
-    // voiceBoth (the multilingual voice) is only correct for "both" mode,
-    // where a single track has to speak mixed English+Japanese. "en"/"ja"
-    // mode are single-language conversations and should use the avatar's
-    // dedicated native voice for that language instead — CharacterBrain.ask()
-    // only reads the `en` slot into the backend's voice_en field, so that's
-    // the one that actually needs to vary here.
+    // voiceBoth is only for "both" mode's mixed-language track; "en"/"ja"
+    // mode uses the avatar's dedicated native voice, sent via the `en` slot.
     const activeVoice =
       this.responseLanguage === "ja"
         ? avatar?.voiceJa
@@ -439,28 +395,17 @@ class AvatarController {
     this.applyBehavior(data);
     this.emitStatus("Ready", "green");
 
-    // The chat history panel is normally sourced fresh from the backend, but
-    // the backend's /ask response can return before it has actually finished
-    // persisting this turn to its own history store (e.g. audio/viseme
-    // generation happens after the row is written). Fetching /history
-    // immediately after can race that write and come back missing this
-    // reply, which only then shows up once the *next* refreshHistory() call
-    // fires — always one turn late. Render this turn from the data we
-    // already have right away, then still reconcile with the backend.
+    // /ask can return before the backend finishes persisting this turn to
+    // its own history store, so an immediate /history fetch can race that
+    // write and land one turn late. Render optimistically now, reconcile after.
     if (reachedBackend) {
       this.appendOptimisticTurn(text, data);
       await this.refreshHistory();
     }
   }
 
-  /**
-   * Renders the just-completed user/assistant exchange immediately, using
-   * the reply payload we already have in hand, instead of waiting on a
-   * /history re-fetch that may not yet reflect it. refreshHistory() is still
-   * called right after to reconcile with the backend's authoritative copy;
-   * if the backend hasn't committed this turn yet, this optimistic entry is
-   * what the panel shows in the meantime instead of nothing.
-   */
+  /** Renders the just-completed exchange immediately from the reply payload
+   * already in hand, ahead of refreshHistory()'s reconciling fetch. */
   appendOptimisticTurn(userText, data) {
     const now = new Date().toISOString();
     const avatarName = lookupAvatar(
@@ -510,7 +455,7 @@ class AvatarController {
     }
 
     if (data._offline) {
-      // Fallback reply — surface it to the user without polluting the persisted chat log.
+      // Fallback reply — surface it without polluting the persisted chat log.
       const offlineText = en || ja || data.reply || "Offline";
       this.emitStatus(offlineText, "red");
       this.speakOfflineNotice(offlineText);
@@ -530,19 +475,15 @@ class AvatarController {
       data.audio_url_ja
     );
 
-    // Backend was reached and replied normally, but its TTS call came back
-    // empty (e.g. edge_tts's cloud endpoint is unreachable while our own
-    // backend and the LLM call are fine). Distinct from the data._offline
-    // case above — the avatar isn't "offline" here, it just has no audio for
-    // this one reply — so voice it locally instead of leaving it silent.
+    // Backend replied fine but its TTS came back empty (e.g. edge_tts
+    // unreachable) — distinct from data._offline; voice it locally instead of staying silent.
     if (!data._offline && !hasAudio) {
       const fallbackText = en || ja || data.reply || "";
       if (fallbackText)
         this.speakLocalNotice(fallbackText, { settleAnimation: "idle" });
     }
 
-    // A named clip other than the gesture/talk/idle ones (e.g. 'offline') that actually
-    // exists in the AnimationManager's loaded clips.
+    // A named clip (e.g. 'offline') other than the gesture/talk/idle ones, that actually exists.
     const hasStandaloneClip =
       incomingAnim &&
       !isOneShotGesture &&
@@ -553,12 +494,10 @@ class AvatarController {
 
     if (this.model.animationManager) {
       if (isOneShotGesture) {
-        // Gesture playback (greeting/thankful/nod) is triggered via the emotion/gesture system below;
-        // this just tells the manager whether to fall back to talking or idle once it finishes.
+        // Gesture itself plays via the emotion/gesture system; this just sets the post-gesture fallback.
         this.model.animationManager.isTalking = hasAudio;
       } else if (hasStandaloneClip) {
-        // A specific clip was requested (e.g. 'offline') and exists — play it directly
-        // instead of defaulting to the talk/idle loop.
+        // Specific clip requested and exists — play it instead of the default talk/idle loop.
         this.model.animationManager.play(incomingAnim, {
           loop: true,
           fade: 0.7,
@@ -581,18 +520,14 @@ class AvatarController {
 
     const captionText =
       selectedLang === "en" ? en : selectedLang === "ja" ? ja : en || ja;
-    // Instant preview shown before processAudioQueue() knows the real audio
-    // duration — just the first chunk, so even this early flash never
-    // covers the face. It's replaced almost immediately by the properly
-    // timed chunk sequence below.
+    // Instant preview before processAudioQueue() knows real audio duration;
+    // replaced almost immediately by the properly timed chunk sequence below.
     const [previewChunk] = this.splitIntoCaptionChunks(captionText);
     this.emitCaption(previewChunk || captionText);
 
-    // All three response-language modes now funnel through processAudioQueue
-    // so avatar:speaking (and the duration-based timing it relies on) fires
-    // consistently. 'both' used to queue the separate en and ja tracks back
-    // to back; the backend now returns one shared track/text for both slots,
-    // so 'both' queues a single entry too, same as 'en'/'ja' do.
+    // All three response-language modes funnel through processAudioQueue so
+    // avatar:speaking fires consistently; the backend now returns one
+    // shared track/text for 'both' too, same as 'en'/'ja'.
     if (selectedLang === "en") {
       this.audioQueue.push({
         ...data,
@@ -618,11 +553,8 @@ class AvatarController {
     this.processAudioQueue();
   }
 
-  /**
-   * Voices the offline fallback message using the browser's built-in speech
-   * synthesis (no backend reachable at all in this state). Settles back into
-   * the dedicated 'offline' pose/clip once the utterance ends, same as before.
-   */
+  /** Voices the offline fallback via browser speech synthesis, settling
+   * into the 'offline' pose once done. */
   speakOfflineNotice(text) {
     this.speakLocalNotice(text, {
       settleAnimation: "offline",
@@ -631,22 +563,15 @@ class AvatarController {
   }
 
   /**
-   * Voices `text` using the browser's built-in speech synthesis instead of
-   * backend audio. Used both when the backend itself is unreachable
-   * (speakOfflineNotice) and when the backend replied fine but its own TTS
-   * call came back empty (e.g. edge_tts's cloud endpoint is down) — those two
-   * cases differ only in what pose the avatar should settle into afterward,
-   * via `settleAnimation`. Drives the avatar's lip-sync fallback simulation
-   * and a talk animation for the duration of the utterance.
+   * Voices `text` via browser speech synthesis instead of backend audio —
+   * used when the backend is unreachable, or when it replied fine but its
+   * TTS came back empty. Drives lip-sync simulation and a talk animation
+   * for the utterance's duration.
    *
    * @param {string} text
    * @param {{settleAnimation?: 'offline'|'idle', retryFlag?: string}} [options]
-   *   settleAnimation: pose to return to when speech ends. 'offline' plays the
-   *   dedicated offline clip (falling back to idle if it isn't loaded); 'idle'
-   *   always returns straight to idle, since the backend is actually working.
-   *   retryFlag: per-call-site flag name on `this`, so the offline-notice retry
-   *   and the TTS-missing-fallback retry don't stomp on each other if both
-   *   fire in the same session.
+   *   settleAnimation: pose on speech end. retryFlag: per-call-site flag so
+   *   concurrent retries (offline-notice vs TTS-missing) don't collide.
    */
   speakLocalNotice(
     text,
@@ -655,8 +580,7 @@ class AvatarController {
     if (!text || typeof window === "undefined" || !window.speechSynthesis)
       return;
 
-    // Voice list loads asynchronously in some browsers (notably Chrome) — retry once
-    // after it's populated, but don't block the announcement indefinitely on it.
+    // Voice list loads async in some browsers (notably Chrome) — retry once after it populates.
     if (!window.speechSynthesis.getVoices().length && !this[retryFlag]) {
       this[retryFlag] = true;
       window.speechSynthesis.addEventListener(
@@ -674,8 +598,7 @@ class AvatarController {
 
       const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
       const neuralVoiceName = avatar?.voiceEn || "";
-      // Edge-TTS neural voice names look like "en-US-JennyNeural" — pull the locale out
-      // so the browser voice at least matches language/region.
+      // Edge-TTS names look like "en-US-JennyNeural" — pull the locale so the browser voice at least matches.
       const localeMatch = neuralVoiceName.match(/^[a-z]{2}-[A-Z]{2}/);
       const locale = localeMatch ? localeMatch[0] : "en-US";
       utterance.lang = locale;
@@ -717,13 +640,9 @@ class AvatarController {
     }
   }
 
-  /**
-   * Best-effort match between an avatar's Edge-TTS neural voice name and one of
-   * the browser's locally available speechSynthesis voices. Can't reproduce the
-   * exact neural voice offline, so this matches locale first, then deterministically
-   * spreads avatars across same-locale voices (by hashing the neural voice name) so
-   * different avatars at least sound distinct from each other offline.
-   */
+  /** Best-effort match between an avatar's Edge-TTS voice and a locally
+   * available speechSynthesis voice — matches locale, then deterministically
+   * spreads avatars across same-locale voices so they sound distinct offline. */
   pickBrowserVoice(locale, neuralVoiceName) {
     if (typeof window === "undefined" || !window.speechSynthesis) return null;
     const voices = window.speechSynthesis.getVoices();
@@ -754,16 +673,12 @@ class AvatarController {
         ? nextData.translated_reply || nextData.text_ja || ""
         : nextData.reply || nextData.text_en || "";
 
-    // Use the actually-resolved backend (attribute override, or BACKEND
-    // fallback) — not the bare BACKEND constant, which is '' whenever a
-    // `backend` attribute is set and would make these paths resolve against
-    // whatever origin the page itself is served from instead of the API.
+    // Actually-resolved backend, not the bare BACKEND constant (which is ''
+    // whenever a `backend` attribute override is set).
     const backendOrigin = this.model.backend || BACKEND;
 
-    // Filled in once the chunk sequence below finishes. If the audio's own
-    // finished callback fires first (rare — durations are matched, but not
-    // guaranteed to land in the same tick), hideCaption(null) just falls
-    // back to whatever chunk is currently showing — see AvatarCaptions.
+    // Set once the chunk sequence finishes; if audio's own end callback
+    // fires first, hideCaption(null) falls back to whatever's showing.
     let lastChunkId = null;
 
     this.lastAudio =
@@ -786,9 +701,7 @@ class AvatarController {
       } catch (error) {}
     }
 
-    // Replay the caption as a sequence of short, timed bursts (like real
-    // closed captions) instead of one block of text — see
-    // splitIntoCaptionChunks/playCaptionChunks.
+    // Replayed as timed bursts (like real closed captions) — see splitIntoCaptionChunks/playCaptionChunks.
     const chunks = this.splitIntoCaptionChunks(captionText);
     const chunkSequence = this.playCaptionChunks(chunks, duration).then(
       (id) => {
@@ -802,10 +715,8 @@ class AvatarController {
     if (this.audioQueue.length > 0) {
       this.processAudioQueue();
     } else {
-      // Only clear the "speaking" state once the whole queue has finished —
-      // otherwise inputs would briefly re-enable mid-reply if more than one
-      // entry is queued (e.g. a reply that lands while a prior one is still
-      // playing).
+      // Only clear "speaking" once the whole queue finishes, so inputs
+      // don't briefly re-enable mid-reply when more than one entry is queued.
       this.emit("speaking", { active: false });
     }
   }
@@ -845,10 +756,8 @@ class AvatarController {
   }
 
   /** Breaks a reply into short caption-sized pieces so a long reply never
-   * renders as one tall block covering the avatar's face — sentence
-   * boundaries first (English + Japanese punctuation), falling back to a
-   * word-boundary split for any single sentence that's still too long on
-   * its own (e.g. a run-on sentence with no punctuation). */
+   * covers the avatar's face — splits on sentence boundaries first, falling
+   * back to word boundaries for any single sentence still too long. */
   splitIntoCaptionChunks(text, maxChars = 130) {
     const trimmed = String(text || "").trim();
     if (!trimmed) return [];
@@ -882,12 +791,8 @@ class AvatarController {
   }
 
   /** Steps through caption chunks as a timed sequence, distributing
-   * totalDurationMs across them proportionally to each chunk's length —
-   * roughly following natural speech pacing without needing real word
-   * timing data. Returns the id of the LAST chunk shown, so the caller can
-   * hide exactly that one once audio playback actually ends (may not
-   * perfectly line up with the measured duration if real playback runs
-   * long/short — see the caller in processAudioQueue). */
+   * totalDurationMs proportionally to each chunk's length. Returns the id
+   * of the last chunk shown, so the caller can hide it once playback ends. */
   async playCaptionChunks(chunks, totalDurationMs) {
     if (!chunks.length) return null;
 
@@ -911,13 +816,9 @@ class AvatarController {
     return captionId;
   }
 
-  /**
-   * Pulls the authoritative conversation log from the backend and hands it
-   * to the UI as one full snapshot (avatar:chat-history). If the backend
-   * can't be reached — offline, not running, etc — this resolves to an
-   * empty list rather than falling back to any locally-remembered state,
-   * so the chat history panel simply stays unpopulated in that case.
-   */
+  /** Pulls the authoritative conversation log and hands the UI one full
+   * snapshot. Unreachable backend resolves to an empty list rather than
+   * falling back to local state. */
   async refreshHistory() {
     const requestId = ++this._historyRequestId;
     const avatarName = lookupAvatar(
@@ -944,12 +845,7 @@ class AvatarController {
     }
   }
 
-  /**
-   * Clears the backend's conversation history (today an in-memory list,
-   * later a database row/table) and refreshes the panel from it. If the
-   * backend can't be reached, there's nothing server-side to clear yet —
-   * refreshHistory() will just show the empty state.
-   */
+  /** Clears the backend's conversation history and refreshes the panel. */
   async clearChatHistory() {
     const avatarName = lookupAvatar(
       this.currentAvatarId,

@@ -19,37 +19,23 @@ import {
 import { applyUiLanguageToApp } from "./i18n.js";
 
 /**
- * AvatarSettingsController — the same persistence surface as
- * AvatarController (avatar selection, persona/name edits, response
- * language, UI language), for pages that mount <avatar-settings> with no
- * <avatar-model> present. No Three.js/GLTFLoader/canvas involved. Created
- * automatically by AvatarSettings.js when it detects no matching
- * <avatar-model> exists on the page for its instance — see that file.
+ * AvatarSettingsController — same persistence surface as AvatarController
+ * (avatar selection, persona/name edits, languages) for pages that mount
+ * <avatar-settings> with no <avatar-model> present. No Three.js involved.
+ * Created by AvatarSettings.js when no matching <avatar-model> exists for
+ * its instance. Voice/scale are intentionally not handled here.
  *
- * Voice and scale are intentionally NOT handled here — they aren't exposed
- * on the settings panel today, and remain in-memory-only on AvatarController.
- *
- * IMPORTANT: registerListeners() attaches to `window`, not to this
- * instance's element — so this controller MUST be torn down via destroy()
- * whenever the owning <avatar-settings> disconnects (e.g. on every
- * client-side route change in a Next.js app). Without a working destroy(),
- * these listeners outlive the page that created them: a stale controller
- * from an unmounted settings-only page keeps reacting to
- * avatar:select-avatar / avatar:edit-persona / etc. for its instanceId
- * indefinitely, including on later pages that happen to reuse the same
- * instance id (e.g. navigating into the exact character/instance that card
- * represented) — each stale controller independently re-saves settings
- * from its own frozen, increasingly-stale local state. That's the likely
- * cause of "last avatar keeps resetting after client-side navigation, but
- * is fine after a full reload" — a reload clears all module state, so no
- * stale controller exists to interfere; SPA navigation does not.
+ * Listens on `window`, not on its own element, so destroy() MUST be called
+ * from the owning <avatar-settings>'s disconnectedCallback — otherwise a
+ * stale controller from an unmounted page keeps reacting to events for its
+ * instanceId indefinitely (SPA navigation doesn't clear module state).
  */
 export class AvatarSettingsController {
-constructor({ backend = BACKEND, instanceId = "default", appId, userId, settingsScope, settingsGroup } = {}) {
+  constructor({ backend = BACKEND, instanceId = "default", appId, userId, settingsScope, settingsGroup } = {}) {
     this.instanceId = instanceId;
     this.currentAvatarId = DEFAULT_AVATAR_ID;
     this.responseLanguage = DEFAULT_RESPONSE_LANGUAGE;
-    this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope, settingsGroup: settingsGroup || instanceId });
+    this.brain = new CharacterBrain(backend, instanceId, { appId, userId, settingsScope, settingsGroup });
     this._destroyed = false;
     this._abortController = new AbortController();
     this._settingsLoaded = false;
@@ -72,14 +58,13 @@ constructor({ backend = BACKEND, instanceId = "default", appId, userId, settings
   async init() {
     this.registerListeners();
 
-    // Same cold-start retry pattern as AvatarController.loadPersistedSettings()
-    // — absorbs a sleeping backend's first failed request instead of
-    // flashing default state for one load.
+    // Cold-start retry: absorbs a sleeping backend's first failed request
+    // instead of flashing default state for one load.
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      if (this._destroyed) return; // torn down mid-init — stop touching state
+      if (this._destroyed) return;
       try {
         const settings = await this.brain.getSettings({ signal: this._abortController.signal });
-        if (this._destroyed) return; // disconnected while the fetch was in flight
+        if (this._destroyed) return;
 
         if (settings.last_avatar) {
           this.currentAvatarId = settings.last_avatar;
@@ -94,9 +79,9 @@ constructor({ backend = BACKEND, instanceId = "default", appId, userId, settings
           applyUiLanguageToApp(settings.ui_language, this.instanceId);
         }
         setPersonaOverridesCache(settings.persona_overrides || {});
-        break; // success — no retry needed
+        break;
       } catch (error) {
-        if (this._destroyed || error.name === "AbortError") return; // torn down — not a real failure
+        if (this._destroyed || error.name === "AbortError") return;
 
         const isLastAttempt = attempt === 1;
         console.error(
@@ -117,7 +102,7 @@ constructor({ backend = BACKEND, instanceId = "default", appId, userId, settings
     this.emitCurrentProfile();
   }
 
-registerListeners() {
+  registerListeners() {
     window.addEventListener("avatar:select-avatar", this._onSelectAvatar);
     window.addEventListener(
       "avatar:request-current-profile",
@@ -134,11 +119,10 @@ registerListeners() {
     window.addEventListener("avatar:clear-chat-history", this._onClearChatHistory);
   }
 
-  /** Removes every window listener registered in registerListeners() and
-   * marks this controller inert. Safe to call more than once. Must be
-   * called by the owning <avatar-settings> element's disconnectedCallback
-   * — see the class doc comment above for why this matters in Next.js. */
-destroy() {
+  /** Removes all window listeners and marks this controller inert. Safe to
+   * call more than once. Must be called from the owning element's
+   * disconnectedCallback — see the class doc comment above. */
+  destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
     this._abortController.abort();
@@ -216,7 +200,7 @@ destroy() {
       try {
         const targetLang = isJa ? "en" : "ja";
         const result = await this.brain.translate(text, targetLang);
-        if (this._destroyed) return; // disconnected while translate() was in flight
+        if (this._destroyed) return;
         const translated = result?.text ?? "";
         if (translated) fields[isJa ? "persona" : "personaJa"] = translated;
       } catch (error) {
@@ -229,8 +213,7 @@ destroy() {
 
     if (this._destroyed) return;
     setPersonaOverride(targetId, fields, this.instanceId);
-    // Full cache, not just this entry — /settings stores persona_overrides
-    // as a full replace on the backend, same reasoning as AvatarController.
+    // Full cache, not just this entry — /settings stores persona_overrides as a full replace.
     this.brain
       .saveSettings({ persona_overrides: getPersonaOverridesCache() })
       .catch(() => {});
@@ -249,6 +232,7 @@ destroy() {
     if (targetId === this.currentAvatarId) this.emitCurrentProfile();
     this.emitAvailableAvatars();
   }
+
   _onOpenChatHistory(event) {
     if (this._destroyed) return;
     if (event.detail?.instance !== this.instanceId) return;
@@ -272,16 +256,6 @@ destroy() {
 
   emitCurrentProfile() {
     const avatar = lookupAvatar(this.currentAvatarId, this.instanceId);
-    if (!avatar) {
-      // TEMP DIAGNOSTIC — see back-nav infinite-loading bug. If this fires
-      // during a stuck repro, lookupAvatar() is the confirmed break point:
-      // avatar:update-profile never dispatches, so CharacterCard hangs
-      // until useAvatarProfile's 6s timeout. Remove once root-caused.
-      console.warn(
-        `[emitCurrentProfile] no avatar found for id="${this.currentAvatarId}" instance="${this.instanceId}" — avatar:update-profile will NOT fire`,
-      );
-      return;
-    }
     this.emit("update-profile", {
       name: avatar.name,
       persona: avatar.persona,
@@ -290,14 +264,9 @@ destroy() {
       isCustomPersona: hasPersonaOverride(avatar.id, this.instanceId),
     });
   }
-  /**
-   * Same contract as AvatarController.refreshHistory() — pulls the
-   * authoritative log from the backend and hands it to the UI as one full
-   * snapshot (avatar:chat-history). Added because AvatarSettingsController
-   * previously had no chat-history support at all, so <avatar-settings>
-   * instances with no matching <avatar-model> (e.g. CharacterPreviewCard's
-   * settings-only usage) silently never answered avatar:open-chat-history.
-   */
+
+  /** Same contract as AvatarController.refreshHistory() — pulls the
+   * authoritative log and hands the UI one full snapshot. */
   async refreshHistory() {
     const requestId = ++this._historyRequestId;
     const avatarName = lookupAvatar(this.currentAvatarId, this.instanceId)?.name;
