@@ -115,7 +115,7 @@ in a browser for a live demo and usage notes.
 - **3D Lip-Sync** — Powered by `three.js`, driving real-time facial morphs and animations from server-generated visemes.
 - **Multiple Avatars** — Switch between characters at runtime; each keeps its own persona, voice, and chat history.
 - **Persistent Chat History & Settings** — Reply language, interface language, and your last-selected avatar are remembered across visits, with no account or login required (see [Persistence & Identity](#persistence--identity)).
-- **Multi-Tenant Ready** — Third-party apps embedding this widget can pass their own `app-id` (and optionally `user-id`) so each integrator's users stay fully isolated from every other integrator's. Settings can additionally be scoped per-app via `settings-scope="app"` (see [Persistence & Identity](#persistence--identity)).
+- **Multi-Tenant Ready** — Third-party apps embedding this widget can pass their own `app-id` (and optionally `user-id`) so each integrator's users stay fully isolated from every other integrator's. Settings can additionally be scoped per-app via `settings-scope="app"`, with an optional `settings-group` attribute to further split app-scoped settings per character/scenario — see [Persistence & Identity](#persistence--identity).
 - **Offline Fallback** — If the backend drops, the avatar keeps moving safely with a neutral expression and an "offline" animation instead of freezing or crashing.
 - **Load-Failure Recovery** — see [Load Error Handling](#load-error-handling).
 - **Auto-Timezone Awareness** — Detects the browser's timezone automatically so the AI is grounded in the real current date and time.
@@ -183,7 +183,7 @@ Components don't reference each other directly — they communicate through
 | `avatar:set-ui-language` | settings, setup | Switches interface labels (`en` / `ja`) |
 | `avatar:set-response-language` | settings, setup | Switches the avatar's reply language (`en` / `ja` / `both`) |
 | `avatar:set-scale` | host page | Adjusts the loaded avatar's scale/vertical offset at runtime |
-| `avatar:set-voice`¹ | settings | Overrides the TTS voice for the current avatar |
+| `avatar:set-voice` | settings | Overrides the TTS voice for the current avatar — defined but currently unwired; no UI node emits it (see note below) |
 | `avatar:edit-persona` | settings | Saves an edited name/persona for an avatar |
 | `avatar:reset-persona` | settings | Reverts an avatar's persona back to its built-in default |
 | `avatar:open-chat-history` / `avatar:clear-chat-history` | settings | Opens the history panel / clears the *current avatar's* history |
@@ -193,7 +193,7 @@ Components don't reference each other directly — they communicate through
 | `avatar:show-caption` / `avatar:hide-caption` | controller | Shows or hides subtitles |
 | `avatar:thinking` / `avatar:listening` / `avatar:speaking` | controller | Drives the avatar's pose/animation while processing, recording, or talking |
 | `avatar:available-avatars` | controller | Populates the avatar picker and settings panel |
-| `avatar:available-voices`¹ | controller | Populates the voice picker |
+| `avatar:available-voices` | controller | Populates the voice picker — defined but currently unwired; no listener exists in `AvatarSettings.js` or `AvatarPickerCore.js` (see note below) |
 | `avatar:update-profile` | controller | Updates the settings panel's/card's name/persona data |
 | `avatar:chat-history` | controller | Delivers a fresh snapshot of chat history to render |
 | `avatar:avatar-loading` | controller | Toggles while a specific avatar model is (re)loading, e.g. on selection |
@@ -201,10 +201,13 @@ Components don't reference each other directly — they communicate through
 | `avatar:app:loading` / `avatar:app:ready` | controller | Marks overall widget startup boundaries |
 | `avatar:app:load-error` | controller | Signals the *initial* avatar load at startup failed — distinct from `avatar:load-error`, which covers a later avatar swap |
 
-¹ Not confirmed against the shared picker (`AvatarPickerCore.js`), which has
-no voice-select UI node wired up today — this may live elsewhere in
-`AvatarSettings.js`, or be stale. Worth double-checking against source if
-you're relying on voice switching.
+> **Note:** `avatar:set-voice` and `avatar:available-voices` are part of
+> the event contract but have no current UI — neither `AvatarSettings.js`
+> nor `AvatarPickerCore.js` has a voice-select control, a listener for
+> `available-voices`, or an emitter for `set-voice`. Voice selection is
+> only possible today via the `voices` argument passed directly to
+> `CharacterBrain.ask()`. Treat these two events as reserved/future
+> rather than functional.
 
 ---
 
@@ -414,7 +417,8 @@ Any backend you plug in needs to implement these endpoints. Every request
 carries an `X-User-Id` header, and — for multi-tenant integrations — an
 `X-App-Id` header. `/settings` requests (and `/ask`, for its saved
 reply-language lookup) also carry an `X-Settings-Scope` header —
-`"app"` or `"user"` (default when absent) — see
+`"app"` or `"user"` (default when absent) — and an `X-Settings-Group`
+header (defaults to `""`, only meaningful when scope is `"app"`) — see
 [Settings Scope: Per-App vs Per-User](#settings-scope-per-app-vs-per-user).
 See [Persistence & Identity](#persistence--identity) for what these
 headers are for.
@@ -448,7 +452,7 @@ Notes for implementers:
   integrators' users with the same `user-id` will collide.
 - `persona_overrides` is an object keyed by `"<instance>::<avatarId>"` strings (e.g. `"slot-1::female_ug": { "name": "...", "persona": "...", "personaJa": "..." }`), constructed and read entirely client-side — the backend just needs to store and return whatever object it's given. The frontend always sends its **complete current object** on every persona edit, so this field must be stored as a full replace, not merged server-side, or edits to one avatar will silently wipe out previously saved edits to others.
 - Whether a reply uses the mixed-language "teaching" style is decided entirely server-side, per request — the reference backend checks `avatar_persona` for teaching-related language (instructor, teaches, coach, student, etc.) and only enables it when that's true **and** `speak_language` is `"both"`. The frontend doesn't send a teaching flag, and `AvatarSources.js` has no `teachingMode` property — it's purely a function of what the persona text says. When enabled, one reply naturally mixes the taught language and the student's native language instead of a separate English reply plus Japanese translation; in that mode `translated_reply` mirrors `reply`, `romanization` doesn't apply, and `audio_url_en`/`audio_url_ja` point to the same single generated track. A backend that doesn't implement this distinction can safely ignore it — it just won't produce the mixed-language behavior.
-- `/settings` (GET and POST) is the only pair of endpoints affected by `X-Settings-Scope`. When it's `"app"`, the reference backend reads/writes a settings row keyed by `app_id` alone (shared across every `user_id` under that app); otherwise it uses the same compound `"<app-id>::<user-id>"` key as chat history. Chat history itself (`/history`, `/reset`) never reads this header — it's always keyed per end-user regardless of settings scope.
+- `/settings` (GET and POST) is the only pair of endpoints affected by `X-Settings-Scope`/`X-Settings-Group` — full semantics and keying are in [Settings Scope: Per-App vs Per-User](#settings-scope-per-app-vs-per-user) and [Settings Group](#settings-group-further-split-within-app-scope). Chat history itself (`/history`, `/reset`) never reads either header — it's always keyed per end-user regardless of settings scope.
 
 ## Persistence & Identity
 
@@ -538,6 +542,37 @@ already are, so a client that sends `settings-scope="app"` on one page
 and omits it on another will read/write two different settings rows for
 the same `app-id`. Keep the attribute consistent across every page/element
 using the same `app-id` if you want `app` scoping to behave predictably.
+
+#### Settings Group (further split within app-scope)
+
+When using `settings-scope="app"`, an optional `settings-group` attribute
+lets you split that app's shared settings row further — useful if a
+single `app-id` hosts multiple distinct "characters" (a scenario + avatar
+combo) and you want each one to keep its own settings instead of all of
+them sharing one row.
+
+```html
+<!-- Without settings-group: every scope="app" instance under this
+     app-id shares ONE settings row -->
+<avatar-model backend="..." app-id="acme-corp" settings-scope="app"></avatar-model>
+
+<!-- With settings-group: this instance gets its own row, scoped to
+     (app-id, settings-group) — other characters under the same app-id
+     with a different (or no) settings-group are unaffected -->
+<avatar-model
+  backend="..."
+  app-id="acme-corp"
+  settings-scope="app"
+  settings-group="character-a"
+></avatar-model>
+```
+
+Internally this sends an `X-Settings-Group` header alongside
+`X-Settings-Scope` (see [API Contract](#api-contract)). It has no effect
+under the default `settings-scope="user"`. Omitting it defaults to `""`
+— the same default the reference backend's `AppSettings` table uses — so
+existing `settings-scope="app"` integrations that never set this are
+unaffected.
 
 ---
 
