@@ -170,12 +170,6 @@ export class ExpressionEngine {
             });
         });
 
-        // TEMP DIAGNOSTIC — remove once all target rigs are verified.
-        this.faceMeshes.forEach((mesh, i) => {
-            const keys = Object.keys(mesh.morphTargetDictionary).sort();
-            console.log(`[ExpressionEngine] faceMesh[${i}] name="${mesh.name || "(unnamed)"}" morphTargetCount=${keys.length}`);
-            console.log(`[ExpressionEngine] faceMesh[${i}] morphTargets:`, keys);
-        });
     }
 
     _existsSomewhere(key) {
